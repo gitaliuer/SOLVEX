@@ -832,3 +832,10 @@ the card stays beside it. */
   font-size:9px;
   margin-top:7px
 }
+
+.chat-jump {align-self:center;margin:-40px 0 8px;position:relative;z-index:2;min-height:32px;font-size:11px;padding:8px 13px;border:1px solid #6b5796;background:#302448;color:#dfd4ff;border-radius:20px;box-shadow:0 4px 20px #0005}
+.agent-chat .message-text {font-size:14px;line-height:1.8}
+.workspace #chat-input {font-size:14px;overflow-y:auto}
+@media(max-width:760px) {.agent-chat .message-text,.workspace #chat-input {font-size:13px}}
+
+@media(max-width:760px) {.workspace #chat-input {font-size:16px}}

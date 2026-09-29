@@ -65,5 +65,12 @@
   check(requests.filter(r=>r.url==="/api/me/agent"&&r.method==="POST").length===1&&task.id===91,"Повторные сохранения используют прежнюю задачу");
   for(const width of [390,375]){frame.style.width=width+"px";await delay();check(doc.documentElement.scrollWidth<=doc.documentElement.clientWidth,"Панели без горизонтальной прокрутки: "+width);}
   frame.style.width="100%";
+  const history = Array.from({length:24},(_,i)=>({id:1000+i,role:i%2?"assistant":"user",text:"Длинное сообщение для проверки чтения истории. ".repeat(6),created_at:new Date().toISOString()}));
+  win.acceptSnapshot({...conversation,messages:history});await delay();
+  byId("chat-scroll").scrollTop=0;
+  win.acceptSnapshot({...conversation,messages:[...history,{id:1030,role:"assistant",text:"Новый ответ",created_at:new Date().toISOString()}]});await delay();
+  check(byId("chat-scroll").scrollTop===0&&!byId("chat-jump").hidden,"Новый ответ не прерывает чтение истории");
+  byId("chat-jump").click();await delay();
+  check(byId("chat-jump").hidden&&byId("chat-scroll").scrollTop>0,"Кнопка возвращает к новым сообщениям");
   output.textContent+="\nЗавершено. Только синтетические ответы.";
 })().catch(error=>{document.getElementById("results").textContent+="\nERROR "+error.message;});

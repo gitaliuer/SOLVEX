@@ -74,9 +74,9 @@ async function action(button, fn) {
     button.removeAttribute("aria-busy"); button.textContent = label;
   }
 }
-function view(name) {
+function view(name, options = {}) {
   if (!state.user) return;
-  const business = ["create", "my-tasks", "business"], team = ["team-profile", "my-proposals"];
+  const business = ["create", "my-tasks", "business", "matches"], team = ["team-profile", "my-proposals"];
   if ((business.includes(name) && state.user.role !== "BUSINESS") ||
       (team.includes(name) && state.user.role !== "TEAM") || !document.getElementById(name)?.classList.contains("view")) {
     name = state.user.role === "BUSINESS" ? "create" : "catalog";
@@ -84,7 +84,7 @@ function view(name) {
   state.currentView = name;
   if (name !== "catalog") { catalogRequest++; detailRequest++; }
   history.replaceState(null, "", "#" + name);
-  const labels = {create:"AI Agent", "my-tasks":"Мои задачи", business:"Отклики команд", catalog:"Каталог задач", "team-profile":"Профиль команды", "my-proposals":"Мои отклики", about:"О платформе"};
+  const labels = {create:"AI Agent", "my-tasks":"Мои задачи", business:"Отклики команд", matches:"Подбор команд", catalog:"Каталог задач", "team-profile":"Профиль команды", "my-proposals":"Мои отклики", about:"О платформе"};
   $("page-label").textContent = labels[name] || "SOLVEX";
   for (const section of document.querySelectorAll(".view")) section.hidden = section.id !== name;
   const role = name === "about" ? null : name === "catalog" ? "team" : "business";
@@ -95,7 +95,8 @@ function view(name) {
   message("");
   if (name === "create" || name === "my-tasks") loadBusinessTasks(true);
   if (name === "catalog") loadTasks(true);
-  if (name === "business") loadBusiness();
+  if (name === "business") loadBusiness(options.taskId);
+  if (name === "matches") loadMatching(options.taskId);
   if (name === "team-profile") loadTeamProfile();
   if (name === "my-proposals") loadMyProposals();
 }
@@ -129,7 +130,12 @@ function renderBusinessTasks() {
         if (state.busy) return;
         action(button, () => openSavedTask(task.id));
       });
-      item.append(text, button); list.append(item);
+      const actions = el("div", null, "actions"); actions.append(button);
+      if (task.status === "published") {
+        const match = el("button", "Подобрать команду →", "text-button"); match.type = "button";
+        match.onclick = () => view("matches", {taskId:task.id}); actions.append(match);
+      }
+      item.append(text, actions); list.append(item);
     }
   }
 }
@@ -254,16 +260,21 @@ async function openTask(id) {
   } catch (error) { message(error.message, true); }
 }
 
-async function loadBusiness() {
+let businessLoad = 0;
+async function loadBusiness(preferredId) {
+  const generation = ++businessLoad;
   try {
     message("Загружаем задачи бизнеса и отклики...");
-    const data = await api("/api/me/tasks"); data.tasks = data.tasks.filter(task => task.status === "published"); state.tasks = data.tasks;
+    const data = await api("/api/me/tasks");
+    if (generation !== businessLoad || state.currentView !== "business") return;
+    data.tasks = data.tasks.filter(task => task.status === "published"); state.tasks = data.tasks;
     const select = $("business-task"), previous = select.value;
     select.replaceChildren(...data.tasks.map(task => new Option(`${task.card.title} · ${task.score}/100`, task.id)));
-    if (data.tasks.some(task => String(task.id) === previous)) select.value = previous;
+    if (preferredId && data.tasks.some(task => task.id === preferredId)) select.value = String(preferredId);
+    else if (data.tasks.some(task => String(task.id) === previous)) select.value = previous;
     else if (state.taskId && data.tasks.some(task => task.id === state.taskId)) select.value = String(state.taskId);
     await loadProposals();
-  } catch (error) { message(error.message, true); }
+  } catch (error) { if (generation === businessLoad && state.currentView === "business") message(error.message, true); }
 }
 let proposalRequest = 0;
 async function loadProposals(successMessage = "") {
@@ -273,9 +284,14 @@ async function loadProposals(successMessage = "") {
   if (!taskId) { list.append(el("p", "Сначала опубликуйте задачу.")); message("Опубликованных задач пока нет."); return; }
   try {
     const [{proposals}, {teams}] = await Promise.all([api(`/api/me/tasks/${taskId}/proposals`), api("/api/catalog/teams")]);
-    if (request !== proposalRequest || $("business-task").value !== taskId) return;
+    if (request !== proposalRequest || $("business-task").value !== taskId || state.currentView !== "business") return;
     list.replaceChildren();
-    if (!proposals.length) { list.append(el("p", "Пока нет предложений.")); message("Отклики загружены: пока ни одного."); return; }
+    if (!proposals.length) {
+      const find = el("button", "Посмотреть подходящие команды →", "secondary"); find.type = "button";
+      find.onclick = () => view("matches", {taskId:Number(taskId)});
+      list.append(el("p", "Пока нет предложений. Можно изучить команды и сохранить интересные профили."), find);
+      message("Отклики загружены: пока ни одного."); return;
+    }
     for (const p of proposals) {
       const article = el("article"), team = teams.find(t => t.id === p.team_id), actions = el("div", null, "actions");
       article.classList.toggle("selected", p.status === "selected");

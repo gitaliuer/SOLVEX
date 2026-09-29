@@ -75,6 +75,11 @@ def init_db() -> None:
             );
         """)
         db.executescript("""
+            CREATE TABLE IF NOT EXISTS team_shortlist (
+                task_id INTEGER NOT NULL REFERENCES tasks(id),
+                team_id INTEGER NOT NULL REFERENCES teams(id), created_at TEXT NOT NULL,
+                PRIMARY KEY(task_id, team_id)
+            );
             CREATE TABLE IF NOT EXISTS agent_sessions (
                 owner_user_id INTEGER NOT NULL REFERENCES users(id),
                 request_id TEXT NOT NULL, task_id INTEGER NOT NULL REFERENCES tasks(id),

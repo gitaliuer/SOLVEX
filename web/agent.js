@@ -103,16 +103,20 @@ function showScore(task) {
     button.addEventListener("click", () => focusField(key)); li.append(button); return li;
   }));
   $("publish").hidden = task.status === "published";
+  $("find-teams").hidden = task.status !== "published";
   $("publication-hint").textContent = task.status === "published"
     ? "Задача в каталоге. Чат доступен для обсуждения; изменения публикации вносите вручную."
     : "Публикация откроет все поля карточки, включая контакт. Можно с любым рейтингом.";
 }
 function renderMessages() {
   $("chat-welcome").hidden = agent.messages.length > 0;
-  const target = $("chat-messages");
+  const target = $("chat-messages"), scroll = $("chat-scroll");
+  const nearBottom = scroll.scrollHeight - scroll.scrollTop - scroll.clientHeight < 100;
+  let added = false, userAdded = false;
   const known = new Set([...target.children].map(node => node.dataset.id));
   for (const item of agent.messages) {
     if (known.has(String(item.id))) continue;
+    added = true; userAdded ||= item.role === "user";
     const row = el("article", null, "chat-message " + item.role); row.dataset.id = String(item.id);
     const avatar = el("span", "✳", "message-avatar"); avatar.setAttribute("aria-hidden", "true");
     const body = el("div", null, "message-body");
@@ -120,7 +124,9 @@ function renderMessages() {
     const time = el("time", new Date(item.created_at).toLocaleTimeString("ru", {hour:"2-digit",minute:"2-digit"}), "message-time");
     time.dateTime = item.created_at; body.append(time); row.append(avatar, body); target.append(row);
   }
-  const scroll = $("chat-scroll"); scroll.scrollTop = scroll.scrollHeight;
+  if (nearBottom || userAdded) {
+    requestAnimationFrame(() => { scroll.scrollTop = scroll.scrollHeight; $("chat-jump").hidden = true; });
+  } else if (added) $("chat-jump").hidden = false;
 }
 function acceptSnapshot(data, replaceCard = true) {
   agent.task = data.task; agent.messages = data.messages; agent.run = data.run;
@@ -131,21 +137,20 @@ function acceptSnapshot(data, replaceCard = true) {
     renderEditor(data.task.card, data.task.confirmed_fields); markSaved();
   }
   if (agent.request?.id === data.run?.request_id && data.messages.some(m => m.role === "user" && m.text === agent.request.text)) {
-    if ($("chat-input").value.trim() === agent.request.text) { $("chat-input").value = ""; state.sourceDirty = false; }
+    if ($("chat-input").value.trim() === agent.request.text) { $("chat-input").value = ""; $("chat-input").style.height = ""; state.sourceDirty = false; }
   }
   showScore(data.task); renderMessages(); upsertBusinessTask(data.task);
   $("agent-error").hidden = data.run?.status !== "failed";
   $("agent-error-text").textContent = data.run?.error || "";
   $("retry-message").hidden = data.run?.status !== "failed";
   lockAgent();
-  requestAnimationFrame(() => { $("chat-scroll").scrollTop = $("chat-scroll").scrollHeight; });
 }
 function resetAgent() {
   clearTimeout(agent.polling); agent.generation++;
   Object.assign(agent, {task:null,messages:[],run:null,sending:false,request:null});
   state.taskId = null; state.card = null; state.sourceDirty = false;
-  $("chat-messages").replaceChildren(); $("chat-input").value = ""; $("topic").value = "";
-  $("chat-welcome").hidden = false; $("agent-error").hidden = true;
+  $("chat-messages").replaceChildren(); $("chat-input").value = ""; $("chat-input").style.height = ""; $("topic").value = "";
+  $("chat-welcome").hidden = false; $("agent-error").hidden = true; $("chat-jump").hidden = true;
   renderEditor(blankCard()); markSaved();
   showScore({card:blankCard(),confirmed_fields:[],score:0,level:"draft",status:"draft",score_breakdown:{}});
   lockAgent(); selectPane("chat");
@@ -165,7 +170,7 @@ async function openSavedTask(id, initial = false) {
   if (generation !== agent.generation) return;
   clearTimeout(agent.polling);
   state.sourceDirty = false; markSaved();
-  $("chat-input").value = ""; $("chat-messages").replaceChildren();
+  $("chat-input").value = ""; $("chat-input").style.height = ""; $("chat-messages").replaceChildren();
   acceptSnapshot(data); selectPane("chat");
   if (!initial) view("create");
   if (data.run?.status === "pending") pollAgent();
@@ -241,7 +246,7 @@ async function sendMessage(retry = false) {
     if (generation !== agent.generation) return;
     acceptSnapshot(data);
     if (!retry && $("chat-input").value.trim() === text) {
-      $("chat-input").value = ""; state.sourceDirty = false;
+      $("chat-input").value = ""; $("chat-input").style.height = ""; state.sourceDirty = false;
     }
     agent.request = null;
     if (data.run?.status === "pending") pollAgent();
@@ -255,7 +260,17 @@ async function sendMessage(retry = false) {
   }
 }
 $("chat-form").addEventListener("submit", event => { event.preventDefault(); sendMessage(); });
-$("chat-input").addEventListener("input", () => { state.sourceDirty = Boolean($("chat-input").value.trim()); });
+$("chat-input").addEventListener("input", () => {
+  const input = $("chat-input"); state.sourceDirty = Boolean(input.value.trim());
+  input.style.height = "auto"; input.style.height = Math.min(input.scrollHeight, 150) + "px";
+});
+$("chat-jump").addEventListener("click", () => {
+  $("chat-scroll").scrollTop = $("chat-scroll").scrollHeight; $("chat-jump").hidden = true;
+});
+$("chat-scroll").addEventListener("scroll", () => {
+  const scroll = $("chat-scroll");
+  if (scroll.scrollHeight - scroll.scrollTop - scroll.clientHeight < 80) $("chat-jump").hidden = true;
+});
 $("chat-input").addEventListener("keydown", event => {
   if (event.key === "Enter" && !event.shiftKey && !event.isComposing) { event.preventDefault(); sendMessage(); }
 });
@@ -280,4 +295,8 @@ $("new-task").addEventListener("click", () => {
 document.querySelectorAll("[data-starter]").forEach(button => button.addEventListener("click", () => {
   $("chat-input").value = button.dataset.starter; state.sourceDirty = true; $("chat-input").focus();
 }));
+$("find-teams").addEventListener("click", () => {
+  if (!agent.task) return;
+  view("matches", {taskId:agent.task.id});
+});
 boot();
