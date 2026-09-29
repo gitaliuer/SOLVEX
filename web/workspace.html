@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Кабинет — SOLVEX</title>
+  <meta name="theme-color" content="#070a12"><link rel="icon" href="/static/assets/mark.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/style.css"><link rel="stylesheet" href="/static/product.css"><link rel="stylesheet" href="/static/workspace.css">
+  <script defer src="/static/auth.js"></script>
+  <script defer src="/static/app.js"></script>
+</head>
+<body class="workspace booting" data-workspace="true">
+  <a class="skip-link" href="#main">К содержимому</a>
+<aside class="app-sidebar">
+    <a class="solvex-brand" href="/" aria-label="SOLVEX — главная"><img src="/static/assets/mark.svg" width="32" height="32" alt=""><span>SOLVEX</span></a>
+    <span class="sidebar-label">Рабочее пространство</span>
+    <nav aria-label="Разделы кабинета">
+      <button type="button" data-view="create" data-access="BUSINESS"><span aria-hidden="true">✳</span>AI-помощник</button>
+      <button type="button" data-view="my-tasks" data-access="BUSINESS"><span aria-hidden="true">▤</span>Мои задачи</button>
+      <button type="button" data-view="business" data-access="BUSINESS"><span aria-hidden="true">↙</span>Отклики команд</button>
+      <button type="button" data-view="catalog"><span aria-hidden="true">◈</span>Каталог задач</button>
+      <button type="button" data-view="team-profile" data-access="TEAM"><span aria-hidden="true">◎</span>Профиль команды</button>
+      <button type="button" data-view="my-proposals" data-access="TEAM"><span aria-hidden="true">↗</span>Мои отклики</button>
+      <button type="button" data-view="about" class="sidebar-about"><span aria-hidden="true">ⓘ</span>О платформе</button>
+    </nav>
+    <div class="sidebar-bottom"><span class="live-dot"></span><p>От проблемы<br><strong>к следующему шагу.</strong></p></div>
+  </aside>
+  <header class="app-topbar"><span id="page-label">Ваше пространство</span><div class="account-area"><span class="account-avatar" aria-hidden="true" id="account-avatar">S</span><div><span id="account-email"></span><small id="account-role"></small></div><button id="logout" type="button" class="text-button">Выйти</button></div></header>
+  <div id="boot-state" role="status">Открываем ваше пространство… <button id="retry-session" type="button" class="secondary" hidden>Повторить</button></div>
+  <main id="main" class="shell" tabindex="-1">
+    <p id="notice" role="status" aria-live="polite"></p>
+    <section id="create" class="view">
+      <div class="intro"><div><span class="eyebrow">Ваша следующая большая идея</span><h1>Давайте разберёмся вместе.</h1><p>Расскажите, что хочется изменить. AI поможет превратить это в понятную задачу.</p></div><button type="button" id="new-task" class="secondary">Новая задача</button></div>
+      <details id="saved-tasks" class="saved-tasks"><summary>Продолжить сохранённую задачу <span id="saved-count" class="count"></span></summary><div class="saved-content"><div class="line"><p class="hint">Ваши черновики и публикации. Продолжайте с того места, где остановились.</p><button type="button" id="refresh-business-tasks" class="secondary">Обновить список</button></div><div id="business-task-list" class="saved-task-list" aria-live="polite"></div></div></details>
+      <div class="workspace-heading">
+        <ol class="step-track" aria-label="Этапы подготовки задачи"><li aria-current="step"><span>01</span>Описание</li><li><span>02</span>Уточнения</li><li><span>03</span>Карточка</li></ol>
+        <div class="stage" aria-live="polite"><span id="stage-number">01 / 03</span><b id="stage-text">Описать задачу</b></div>
+      </div>
+      <div class="source-layout">
+        <details id="source" class="panel source" open><summary>Начнём с вашей ситуации</summary><div class="source-content">
+          <div id="topic-home"><div id="topic-control"><label for="topic">Тема задачи</label><input id="topic" maxlength="80" value="" placeholder="Например, ритейл"></div></div>
+          <label for="draft">Что сейчас не получается?</label><textarea id="draft" rows="3" maxlength="6000" placeholder="В магазине много списаний. Хотим их сократить."></textarea><div class="source-action"><button type="button" id="ask" class="primary">Разобрать с AI →</button><button type="button" id="manual-card" class="text-button">Заполнить карточку самому</button></div><div id="questions" hidden><h2 tabindex="-1">Уточняющие вопросы</h2><p class="hint">Ответьте на то, что уже знаете. Неизвестные сведения можно дополнить позже.</p><div id="question-list"></div><button type="button" id="generate" class="primary">Составить карточку</button></div></div></details>
+        <aside class="source-guide" aria-label="Как подготовить задачу"><img class="guide-logo" src="/static/assets/mark.svg" width="36" height="36" alt=""><h2>Сначала проблема.<br> Затем — решение.</h2><p>Готовое техническое задание не нужно. Достаточно рассказать, что сейчас не получается.</p><ol><li><strong>Уточните потребность</strong><span>AI задаст вопросы по вашему описанию.</span></li><li><strong>Проверьте сведения</strong><span>Исправьте карточку и подтвердите факты.</span></li><li><strong>Найдите команды</strong><span>Опубликуйте задачу с любым рейтингом.</span></li></ol></aside>
+      </div>
+      <section id="editor" class="editor" hidden aria-labelledby="editor-title"><div class="editor-heading"><div><span id="editor-kind" class="eyebrow">Новая карточка от AI</span><h2 id="editor-title" tabindex="-1">Проверьте карточку</h2><p>Отредактируйте текст и подтвердите известные вам сведения.</p></div><span id="task-state" class="tag">Статус: не сохранено</span></div>
+        <div class="editor-layout"><div class="panel editor-fields"><div id="editor-topic"></div><div id="card-fields"></div></div>
+          <aside class="panel side" aria-label="Рейтинг и действия"><h2>Готовность</h2><strong class="score"><span id="score">—</span><small> / 100</small></strong><div class="meter" role="progressbar" aria-label="Рейтинг готовности" aria-valuemin="0" aria-valuemax="100"><i id="score-fill"></i></div><p id="level">Готовность появится после сохранения</p><p id="score-note" class="score-note" hidden></p><p id="unsaved" class="unsaved" role="status" hidden></p><div class="actions editor-actions"><button type="button" id="save" class="primary">Сохранить и пересчитать рейтинг</button><button type="button" id="publish" class="secondary">Опубликовать в каталоге</button></div><p id="publication-hint" class="hint">После публикации все поля карточки, включая контакт, будут видны в каталоге. Можно публиковать с любым рейтингом.</p><button type="button" id="next-edit" class="next-edit" hidden></button><details class="score-details"><summary>9 частей рейтинга</summary><ul id="breakdown" class="score-breakdown"></ul></details><details class="score-details" open><summary>Что повысит рейтинг</summary><ul id="missing"></ul></details></aside>
+        </div>
+      </section>
+    </section>
+    <section id="catalog" class="view" hidden><div class="intro catalog-intro"><div><span class="eyebrow">Возможности для вашей команды</span><h1>Ваша экспертиза.<br>Чья-то новая возможность.</h1><p>Реальные задачи от бизнеса. Найдите свою и предложите решение.</p></div><div class="catalog-total"><strong id="catalog-count">—</strong><span>найдено в каталоге</span></div></div><div class="panel filters"><label>Поиск <input id="catalog-search" type="search" maxlength="160" placeholder="Название или проблема"></label><label>Тема <select id="topic-filter"><option value="">Все темы</option></select></label><label>Готовность <select id="level-filter"><option value="">Любая</option><option value="draft">Начальная 0–39</option><option value="working">Рабочая 40–69</option><option value="ready">Готовая 70–89</option><option value="priority">Приоритетная 90–100</option></select></label><button type="button" id="refresh" class="secondary">Найти</button></div><div class="catalog-caption"><h2>Задачи бизнеса</h2><span>По рейтингу готовности</span></div><div id="task-list" class="cards"></div><section id="task-detail" class="panel" hidden tabindex="-1"></section></section>
+    <section id="business" class="view" hidden><div class="intro"><div><span class="eyebrow">Решение за бизнесом</span><h1>Предложения команд</h1><p>Выбор независим: можно выбрать несколько команд. Баллы начисляются только после подтверждения этапа.</p></div></div><div class="proposal-selector"><label>Задача <select id="business-task"></select></label></div><div id="proposal-list"></div></section>
+    <section id="my-tasks" class="view" hidden><div class="intro"><div><span class="eyebrow">От идеи — к действию</span><h1>Ваши задачи</h1><p>Сохранённые мысли, рабочие черновики и уже открытые возможности.</p></div><button type="button" id="start-new-task" class="primary">+ Новая задача</button></div><div id="my-task-list" class="my-task-list"></div></section>
+    <section id="team-profile" class="view" hidden><div class="intro"><div><span class="eyebrow">Команда, за которой стоит экспертиза</span><h1>Расскажите о себе</h1><p>Этот профиль увидит бизнес вместе с вашим откликом.</p></div></div><form id="team-profile-form" class="panel profile-form"><label for="team-name">Название команды</label><input id="team-name" required minlength="2" maxlength="100" placeholder="Как вас представить?"><label for="team-skills">Что вы умеете</label><input id="team-skills" required maxlength="1280" placeholder="Аналитика данных, UX, разработка"><label for="team-technologies">Технологии</label><input id="team-technologies" maxlength="1280" placeholder="Python, Figma, React"><label for="team-interests">Интересные направления</label><input id="team-interests" maxlength="1280" placeholder="Образование, экология, ритейл"><p class="hint">Перечисляйте через запятую — до 16 пунктов в каждом поле.</p><button type="submit" class="primary">Сохранить профиль</button><span id="team-points" class="hint"></span></form></section>
+    <section id="my-proposals" class="view" hidden><div class="intro"><div><span class="eyebrow">Начало совместной работы</span><h1>Ваши отклики</h1><p>Следите за решениями бизнеса и подтверждёнными этапами.</p></div></div><div id="my-proposal-list" class="proposal-cards"></div></section>
+    <section id="about" class="view" hidden><div class="intro"><div><span class="eyebrow">SOLVEX</span><h1>Ясная задача. Сильная команда.</h1><p>Технологии помогают разобраться. Решения принимают люди.</p></div></div><div class="panel about-copy"><h2>Ваше рабочее пространство</h2><p>Черновики видите только вы. После публикации карточка открывается в каталоге. Отклики отправляют зарегистрированные команды; бизнес выбирает участников вручную.</p><h2>AI помогает, вы подтверждаете</h2><p>AI задаёт уточняющие вопросы и предлагает редактируемый текст. Проверяйте сведения перед публикацией. Рейтинг показывает полноту подтверждённых полей, а не гарантирует успех проекта. Задачу можно опубликовать и с низким рейтингом.</p></div></section>
+  </main>
+  <footer class="shell"><span>SOLVEX · От проблемы к решению</span><a href="#about" id="about-link">О приложении и доступе</a></footer>
+</body>
+</html>

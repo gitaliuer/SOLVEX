@@ -2,38 +2,45 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>AI Sana Challenge Hub</title>
-  <link rel="stylesheet" href="/static/style.css">
-  <script defer src="/static/app.js"></script>
+  <meta name="theme-color" content="#070a12">
+  <meta name="description" content="SOLVEX помогает превратить бизнес-проблему в понятную задачу и найти команду для её решения.">
+  <title>SOLVEX — от проблемы к решению</title>
+  <link rel="icon" href="/static/assets/mark.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/product.css">
+  <script defer src="/static/auth.js"></script>
+  <script defer src="/static/landing.js"></script>
 </head>
-<body>
+<body class="landing">
   <a class="skip-link" href="#main">К содержимому</a>
-  <header><div class="shell top"><a class="brand" href="#main"><span class="brand-symbol" aria-hidden="true">s</span><span class="brand-name">AI Sana<small>Challenge Hub</small></span></a><nav aria-label="Разделы"><button type="button" data-view="create" data-role="business" class="selected">Бизнес</button><button type="button" data-view="catalog" data-role="team">Команда</button><button type="button" data-view="business">Отклики</button><button type="button" data-view="about">О приложении</button></nav></div></header>
-  <main id="main" class="shell" tabindex="-1">
-    <p id="notice" role="status" aria-live="polite"></p>
-    <section id="create" class="view">
-      <div class="intro"><div><span class="eyebrow">Рабочее пространство / Для бизнеса</span><h1>От потребности — к понятной задаче</h1><p>AI поможет с уточнениями. Вы проверите карточку и выберете команды.</p></div><button type="button" id="new-task" class="secondary">Новая задача</button></div>
-      <details id="saved-tasks" class="saved-tasks"><summary>Задачи бизнеса <span id="saved-count" class="count"></span></summary><div class="saved-content"><div class="line"><p class="hint">Сохранённые черновики и опубликованные задачи в общем доступе.</p><button type="button" id="refresh-business-tasks" class="secondary">Обновить список</button></div><div id="business-task-list" class="saved-task-list" aria-live="polite"></div></div></details>
-      <div class="workspace-heading">
-        <ol class="step-track" aria-label="Этапы подготовки задачи"><li aria-current="step"><span>01</span>Описание</li><li><span>02</span>Уточнения</li><li><span>03</span>Карточка</li></ol>
-        <div class="stage" aria-live="polite"><span id="stage-number">01 / 03</span><b id="stage-text">Описать задачу</b></div>
+  <header class="landing-header wrap">
+    <a class="solvex-brand" href="/" aria-label="SOLVEX — главная"><img src="/static/assets/mark.svg" width="34" height="34" alt=""><span>SOLVEX</span></a>
+    <nav class="landing-nav" aria-label="Главная навигация"><a href="#possibilities">Возможности</a><button type="button" data-auth="register" data-role="BUSINESS">Для бизнеса</button><button type="button" data-auth="register" data-role="TEAM">Для команд</button></nav>
+    <div class="header-actions"><button class="text-button" type="button" data-auth="login">Войти</button><button class="button primary small" type="button" data-auth="register">Начать <span aria-hidden="true">↗</span></button><a class="button primary" id="return-to-app" href="/app" hidden>В кабинет <span aria-hidden="true">↗</span></a></div>
+  </header>
+  <main id="main" tabindex="-1" class="wrap">
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <div class="hero-kicker"><span class="live-dot" aria-hidden="true"></span>Люди. Идеи. Новые возможности.</div>
+        <h1 id="hero-title">За каждой<br>проблемой —<br><span>новый прорыв.</span></h1>
+        <p class="hero-subtitle">Превратите то, что мешает бизнесу сегодня,<br class="desktop-break"> в то, что изменит его завтра. Вместе с AI и командой.</p>
+        <div class="hero-actions"><button type="button" class="button primary" data-auth="register" data-role="BUSINESS">Обсудить задачу <span aria-hidden="true">↗</span></button><button type="button" class="button secondary" data-auth="register" data-role="TEAM">Найти задачу <span aria-hidden="true">→</span></button></div>
+        <p class="hero-footnote"><span aria-hidden="true">✳</span> От первого «а что, если» — к реальным действиям.</p>
       </div>
-      <div class="source-layout">
-        <details id="source" class="panel source" open><summary>Описание и уточняющие вопросы</summary><div class="source-content">
-          <div id="topic-home"><div id="topic-control"><label for="topic">Тема задачи</label><input id="topic" maxlength="80" value="Ритейл"></div></div>
-          <label for="draft">Какую задачу нужно решить?</label><textarea id="draft" rows="3" maxlength="6000" placeholder="В магазине много списаний. Хотим их сократить."></textarea><div class="source-action"><button type="button" id="ask" class="primary">Получить уточняющие вопросы</button><span class="hint">Начните с нескольких предложений</span></div><div id="questions" hidden><h2 tabindex="-1">Уточняющие вопросы</h2><p class="hint">Ответьте на то, что уже знаете. Неизвестные сведения можно дополнить позже.</p><div id="question-list"></div><button type="button" id="generate" class="primary">Составить карточку</button></div></div></details>
-        <aside class="source-guide" aria-label="Как подготовить задачу"><span class="guide-symbol" aria-hidden="true">✳</span><h2>Сначала проблема.<br> Затем — решение.</h2><p>Готовое техническое задание не нужно. Достаточно рассказать, что сейчас не получается.</p><ol><li><strong>Уточните потребность</strong><span>AI задаст вопросы по вашему описанию.</span></li><li><strong>Проверьте сведения</strong><span>Исправьте карточку и подтвердите факты.</span></li><li><strong>Найдите команды</strong><span>Опубликуйте задачу с любым рейтингом.</span></li></ol></aside>
+      <div class="hero-visual" aria-label="Задача, AI и команда соединяются в решение">
+        <div class="orb-halo" aria-hidden="true"></div><canvas id="connection-orb" aria-hidden="true"></canvas>
+        <div class="orbit-label label-problem"><span class="node-dot violet"></span><span><small>С чего всё начинается</small>Ваша задача</span></div>
+        <div class="orbit-label label-agent"><img src="/static/assets/mark.svg" width="26" height="26" alt=""><span><small>В центре процесса</small>AI-помощник</span></div>
+        <div class="orbit-label label-team"><span class="node-dot cyan"></span><span><small>Движемся вместе</small>Ваша команда</span></div>
+        <div class="scenario-card"><div class="scenario-top"><span>Большие перемены начинаются так</span><span aria-hidden="true">↗</span></div><p id="scenario-text">«В магазине растут списания.<br>С чего начать?»</p><div class="scenario-tabs" aria-label="Примеры задач"><button type="button" aria-pressed="true" data-scenario="retail">Ритейл</button><button type="button" aria-pressed="false" data-scenario="education">Образование</button><button type="button" aria-pressed="false" data-scenario="service">Сервис</button></div></div>
       </div>
-      <section id="editor" class="editor" hidden aria-labelledby="editor-title"><div class="editor-heading"><div><span id="editor-kind" class="eyebrow">Новая карточка от AI</span><h2 id="editor-title" tabindex="-1">Проверьте карточку</h2><p>Отредактируйте текст и подтвердите известные вам сведения.</p></div><span id="task-state" class="tag">Статус: не сохранено</span></div>
-        <div class="editor-layout"><div class="panel editor-fields"><div id="editor-topic"></div><div id="card-fields"></div></div>
-          <aside class="panel side" aria-label="Рейтинг и действия"><h2>Готовность</h2><strong class="score"><span id="score">—</span><small> / 100</small></strong><div class="meter" role="progressbar" aria-label="Рейтинг готовности" aria-valuemin="0" aria-valuemax="100"><i id="score-fill"></i></div><p id="level">Готовность появится после сохранения</p><p id="score-note" class="score-note" hidden></p><p id="unsaved" class="unsaved" role="status" hidden></p><div class="actions editor-actions"><button type="button" id="save" class="primary">Сохранить и пересчитать рейтинг</button><button type="button" id="publish" class="secondary">Опубликовать в каталоге</button></div><p id="publication-hint" class="hint">Публикация доступна при любом рейтинге.</p><button type="button" id="next-edit" class="next-edit" hidden></button><details class="score-details"><summary>9 частей рейтинга</summary><ul id="breakdown" class="score-breakdown"></ul></details><details class="score-details" open><summary>Что повысит рейтинг</summary><ul id="missing"></ul></details></aside>
-        </div>
-      </section>
     </section>
-    <section id="catalog" class="view" hidden><div class="intro catalog-intro"><div><span class="eyebrow">Открытый каталог / Для команд</span><h1>Найдите задачу,<br> которой нужны вы</h1><p>Изучите потребность бизнеса и предложите свой подход.<br> Низкий рейтинг тоже открыт для вашего решения.</p></div><div class="catalog-total"><strong id="catalog-count">—</strong><span>найдено в каталоге</span></div></div><div class="panel filters"><label>Тема <select id="topic-filter"><option value="">Все темы</option></select></label><label>Готовность <select id="level-filter"><option value="">Любая</option><option value="draft">Начальная 0–39</option><option value="working">Рабочая 40–69</option><option value="ready">Готовая 70–89</option><option value="priority">Приоритетная 90–100</option></select></label><button type="button" id="refresh" class="secondary">Обновить</button></div><div class="catalog-caption"><h2>Задачи бизнеса</h2><span>По рейтингу готовности</span></div><div id="task-list" class="cards"></div><section id="task-detail" class="panel" hidden tabindex="-1"></section></section>
-    <section id="business" class="view" hidden><div class="intro"><div><span class="eyebrow">Решение за бизнесом</span><h1>Предложения команд</h1><p>Выбор независим: можно выбрать несколько команд. Баллы начисляются только после подтверждения этапа.</p></div></div><div class="proposal-selector"><label>Задача <select id="business-task"></select></label></div><div id="proposal-list"></div></section>
-    <section id="about" class="view" hidden><div class="intro"><div><span class="eyebrow">О приложении</span><h1>AI Sana Challenge Hub</h1><p>Сервис помогает бизнесу уточнять задачи, а студенческим командам — предлагать решения.</p></div></div><div class="panel about-copy"><h2>Общий доступ</h2><p>Приложение работает в демонстрационном режиме без авторизации. Разделы «Бизнес» и «Команда» переключают сценарий работы; все сохранённые задачи и отклики доступны участникам общего списка.</p><h2>Примеры и AI</h2><p>Начальные задачи, команды и предложения — синтетические примеры для показа. AI создаёт редактируемый черновик: бизнес проверяет сведения и подтверждает их вручную. Рейтинг отражает заполненность карточки и не доказывает достоверность данных.</p></div></section>
+    <section class="possibilities" id="possibilities" aria-labelledby="possibilities-title">
+      <div class="process-intro"><span class="eyebrow">Меньше неопределённости</span><h2 id="possibilities-title">Больше движения.</h2></div>
+      <div class="process-step"><span class="step-number">01</span><div><h3>Расскажите как есть</h3><p>Начните с проблемы. ТЗ не требуется.</p></div></div>
+      <div class="process-step"><span class="step-number">02</span><div><h3>Соберите ясную задачу</h3><p>AI спросит. Вы уточните и подтвердите.</p></div></div>
+      <div class="process-step"><span class="step-number">03</span><div><h3>Дайте идее команду</h3><p>Получите отклики. Выберите свой подход.</p></div></div>
+    </section>
   </main>
-  <footer class="shell"><span>AI Sana Challenge Hub</span><a href="#about" id="about-link">О приложении и доступе</a></footer>
+  <footer class="landing-footer wrap"><span>SOLVEX <span class="footer-divider">/</span> От проблемы к решению</span><span>Технологии помогают. Решения принимаете вы.</span></footer>
 </body>
 </html>

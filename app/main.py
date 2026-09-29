@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi import Request, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -12,6 +12,8 @@ from app.db import init_db
 from app.routes.api import router
 from app.routes.auth import router as auth_router
 from app.routes.me import router as me_router
+from app.routes.community import router as community_router
+from app.routes.auth import current_session
 
 ROOT = Path(__file__).resolve().parent.parent
 @asynccontextmanager
@@ -25,6 +27,7 @@ app.mount("/static", StaticFiles(directory=ROOT / "web"), name="static")
 app.include_router(router)
 app.include_router(auth_router)
 app.include_router(me_router)
+app.include_router(community_router)
 
 
 @app.exception_handler(HTTPException)
@@ -43,7 +46,10 @@ async def input_limit(request: Request, call_next):
     if request.url.path.startswith("/api/") and request.method in ("POST", "PUT", "PATCH"):
         if len(await request.body()) > 32 * 1024:
             return JSONResponse({"error": {"code": "VALIDATION_ERROR", "message": "Запрос превышает 32 КБ"}}, status_code=413)
-    return await call_next(request)
+    response = await call_next(request)
+    if request.url.path.startswith(("/api/auth/", "/api/me/")) or request.url.path == "/app":
+        response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 @app.get("/api/health")
@@ -54,3 +60,14 @@ def health():
 @app.get("/")
 def index():
     return FileResponse(ROOT / "web" / "index.html")
+
+
+@app.get("/app")
+def workspace(request: Request):
+    try:
+        current_session(request)
+    except HTTPException as exc:
+        if exc.status_code != 401:
+            raise
+        return RedirectResponse("/?auth=login", status_code=303)
+    return FileResponse(ROOT / "web" / "workspace.html")

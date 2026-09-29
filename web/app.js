@@ -13,7 +13,9 @@ const FIELD_GROUPS = [
   ["Условия и связь", ["constraints", "contact", "interaction_format"]]
 ];
 const $ = id => document.getElementById(id);
-const state = {questions: [], card: null, taskId: null, tasks: [], businessTasks: [], teams: [], topics: [], dirty: false, sourceDirty: false, busy: false};
+const state = {user: null, csrf: '', currentView: 'create', profileDirty: false, questions: [], card: null, taskId: null, tasks: [], businessTasks: [], teams: [], topics: [], dirty: false, sourceDirty: false, busy: false};
+
+let catalogRequest = 0, detailRequest = 0, businessRequest = 0;
 
 function el(tag, text, className) {
   const node = document.createElement(tag);
@@ -53,10 +55,19 @@ async function api(path, method = "GET", body = null, timeout = 12000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeout);
   try {
-    const response = await fetch(path, {method, headers: body ? {"Content-Type": "application/json"} : {},
+    const headers = body ? {"Content-Type": "application/json"} : {};
+    if (method !== "GET" && state.csrf) headers["X-CSRF-Token"] = state.csrf;
+    const response = await fetch(path, {method, headers, credentials: "same-origin", cache: "no-store",
       body: body ? JSON.stringify(body) : undefined, signal: controller.signal});
     const data = await response.json();
-    if (!response.ok) throw new Error(data.error?.message || `Ошибка ${response.status}`);
+    if (!response.ok) {
+      if (response.status === 401) {
+        if (path === "/api/auth/logout") return {status: "ok"};
+        SolvexAuth.open("login");
+        throw new Error("Сессия истекла. Войдите снова — несохранённый текст остаётся в этом окне.");
+      }
+      throw new Error(data.error?.message || "Ошибка " + response.status);
+    }
     return data;
   } catch (error) {
     if (error.name === "AbortError") throw new Error("Время ожидания истекло. Попробуйте ещё раз.");
@@ -66,12 +77,13 @@ async function api(path, method = "GET", body = null, timeout = 12000) {
 }
 async function action(button, fn) {
   if (button.disabled) return;
-  const editorScope = button.closest("#create");
+  const editorScope = button.closest("#create") || (button.closest("#my-tasks") ? $("create") : null);
   const scope = editorScope || button.closest("form, article") || button;
   const editing = Boolean(editorScope);
   if (editing && state.busy) return;
   if (editing) state.busy = true;
   const controls = scope === button ? [button] : [...scope.querySelectorAll("button, input, textarea, select")];
+  if (!controls.includes(button)) controls.push(button);
   const disabledBefore = controls.map(control => control.disabled);
   const label = button.textContent;
   controls.forEach(control => { control.disabled = true; });
@@ -85,6 +97,17 @@ async function action(button, fn) {
   }
 }
 function view(name) {
+  if (!state.user) return;
+  const business = ["create", "my-tasks", "business"], team = ["team-profile", "my-proposals"];
+  if ((business.includes(name) && state.user.role !== "BUSINESS") ||
+      (team.includes(name) && state.user.role !== "TEAM") || !document.getElementById(name)?.classList.contains("view")) {
+    name = state.user.role === "BUSINESS" ? "create" : "catalog";
+  }
+  state.currentView = name;
+  if (name !== "catalog") { catalogRequest++; detailRequest++; }
+  history.replaceState(null, "", "#" + name);
+  const labels = {create:"AI-помощник", "my-tasks":"Мои задачи", business:"Отклики команд", catalog:"Каталог задач", "team-profile":"Профиль команды", "my-proposals":"Мои отклики", about:"О платформе"};
+  $("page-label").textContent = labels[name] || "SOLVEX";
   for (const section of document.querySelectorAll(".view")) section.hidden = section.id !== name;
   const role = name === "about" ? null : name === "catalog" ? "team" : "business";
   for (const button of document.querySelectorAll("nav button")) {
@@ -92,9 +115,11 @@ function view(name) {
     if (button.dataset.role) button.setAttribute("aria-pressed", String(button.dataset.role === role));
   }
   message("");
-  if (name === "create") loadBusinessTasks(true);
+  if (name === "create" || name === "my-tasks") loadBusinessTasks(true);
   if (name === "catalog") loadTasks(true);
   if (name === "business") loadBusiness();
+  if (name === "team-profile") loadTeamProfile();
+  if (name === "my-proposals") loadMyProposals();
 }
 for (const button of document.querySelectorAll("nav button")) button.addEventListener("click", () => view(button.dataset.view));
 $("about-link").addEventListener("click", event => {
@@ -106,7 +131,7 @@ function reveal(node) {
   node.scrollIntoView({block:"start", behavior:"auto"});
 }
 function canReplaceWork() {
-  return !(state.dirty || state.sourceDirty) || window.confirm("Есть несохранённые изменения. Продолжить и отбросить их?");
+  return !(state.dirty || state.sourceDirty || state.profileDirty) || window.confirm("Есть несохранённые изменения. Продолжить и отбросить их?");
 }
 function clearSource() {
   state.questions = []; state.sourceDirty = false;
@@ -117,7 +142,7 @@ function clearSource() {
 $("new-task").addEventListener("click", () => {
   if (state.busy || !canReplaceWork()) return;
   clearSource(); state.taskId = null; state.card = null;
-  $("topic-home").append($("topic-control")); $("topic").value = "Ритейл";
+  $("topic-home").append($("topic-control")); $("topic").value = "";
   $("editor").hidden = true; $("card-fields").replaceChildren();
   $("source").hidden = false; $("source").open = true;
   $("saved-tasks").open = false;
@@ -133,7 +158,7 @@ function showScore(task) {
   $("publish").hidden = task.status === "published";
   $("publication-hint").textContent = task.status === "published"
     ? "Сохранённые изменения появятся в опубликованной задаче."
-    : "Публикация доступна при любом рейтинге.";
+    : "После публикации все поля карточки, включая контакт, будут видны в каталоге. Можно публиковать с любым рейтингом.";
   $("score").textContent = task.score;
   $("score-fill").style.width = `${task.score}%`;
   $("score-fill").parentElement.setAttribute("aria-valuenow", String(task.score));
@@ -177,13 +202,13 @@ function resetScore() {
   $("score-note").hidden = true; $("score-note").textContent = "";
   $("breakdown").replaceChildren(); $("missing").replaceChildren();
   $("next-edit").hidden = true; $("publish").hidden = false;
-  $("publication-hint").textContent = "Публикация доступна при любом рейтинге.";
+  $("publication-hint").textContent = "После публикации все поля карточки, включая контакт, будут видны в каталоге. Можно публиковать с любым рейтингом.";
 }
 $("ask").addEventListener("click", event => action(event.currentTarget, async () => {
   const draft = $("draft").value.trim(), topic = $("topic").value.trim();
   if (draft.length < 10 || !topic) throw new Error("Добавьте тему и описание не короче 10 символов");
   message("AI изучает описание и составляет вопросы...");
-  const data = await api("/api/ai/questions", "POST", {draft, topic}, 50000);
+  const data = await api("/api/me/ai/questions", "POST", {draft, topic}, 50000);
   state.questions = data.questions;
   const list = $("question-list"); list.replaceChildren();
   for (const q of state.questions) {
@@ -244,7 +269,7 @@ $("generate").addEventListener("click", event => action(event.currentTarget, asy
   if (state.dirty && !window.confirm("Есть несохранённые изменения. Создать новую карточку и отбросить их?")) return;
   const answers = state.questions.map(q => ({question_id: q.id, answer: $(`answer-${q.id}`).value.trim()}));
   message("AI готовит редактируемый черновик...");
-  const data = await api("/api/ai/card", "POST", {draft: $("draft").value.trim(), topic: $("topic").value.trim(), answers}, 50000);
+  const data = await api("/api/me/ai/card", "POST", {draft: $("draft").value.trim(), topic: $("topic").value.trim(), answers}, 50000);
   state.card = data.card; state.taskId = null;
   state.sourceDirty = false;
   resetScore();
@@ -265,8 +290,8 @@ async function saveCard() {
   const payload = readEditor();
   if (!payload.topic) throw new Error("Укажите тему задачи");
   const task = state.taskId
-    ? await api(`/api/tasks/${state.taskId}`, "PUT", payload)
-    : await api("/api/tasks", "POST", payload);
+    ? await api(`/api/me/tasks/${state.taskId}`, "PUT", payload)
+    : await api("/api/me/tasks", "POST", payload);
   state.taskId = task.id; state.card = task.card; showScore(task); upsertBusinessTask(task);
   markSaved();
   setStage("03 / 03", task.status === "published" ? "Дополнить публикацию" : "Сохранено — можно публиковать");
@@ -276,32 +301,47 @@ async function saveCard() {
 $("save").addEventListener("click", event => action(event.currentTarget, saveCard));
 $("publish").addEventListener("click", event => action(event.currentTarget, async () => {
   await saveCard();
-  const task = await api(`/api/tasks/${state.taskId}/publish`, "POST", {});
+  const task = await api(`/api/me/tasks/${state.taskId}/publish`, "POST", {});
   showScore(task); upsertBusinessTask(task);
   setStage("Готово", "Опубликовано — можно дополнить");
   message(`Задача «${task.card.title}» опубликована. Она доступна всем командам, рейтинг ${task.score}/100.`);
 }));
 
 function renderBusinessTasks() {
-  const list = $("business-task-list"); list.replaceChildren();
   $("saved-count").textContent = state.businessTasks.length ? String(state.businessTasks.length) : "";
-  if (!state.businessTasks.length) { list.append(el("p", "Сохранённых задач пока нет.")); return; }
-  for (const task of state.businessTasks) {
-    const item = el("article", null, "saved-task"), text = el("div"), button = el("button", "Продолжить редактирование", "secondary");
-    text.append(el("strong", task.card.title || "Без названия"), el("span", `${task.topic} · Готовность: ${task.score}/100`), el("span", `Статус: ${task.status === "published" ? "опубликовано" : "черновик"}`));
-    button.type = "button";
-    button.addEventListener("click", () => action(button, () => openSavedTask(task.id)));
-    item.append(text, button); list.append(item);
+  for (const id of ["business-task-list", "my-task-list"]) {
+    const list = $(id); list.replaceChildren();
+    if (!state.businessTasks.length) {
+      const empty = el("div", null, "empty-state");
+      empty.append(el("h2", "У каждой идеи есть начало"), el("p", "Расскажите о своей задаче — первый черновик появится здесь."));
+      list.append(empty); continue;
+    }
+    for (const task of state.businessTasks) {
+      const item = el("article", null, "saved-task"), text = el("div");
+      const button = el("button", "Продолжить редактирование", "secondary");
+      text.append(el("span", task.topic, "eyebrow"), el("strong", task.card.title || "Без названия"),
+        el("span", "Готовность: " + task.score + "/100 · " + (task.status === "published" ? "В каталоге" : "Черновик")));
+      button.type = "button";
+      button.addEventListener("click", () => {
+        if (state.busy) return;
+        action(button, () => openSavedTask(task.id));
+      });
+      item.append(text, button); list.append(item);
+    }
   }
 }
 function upsertBusinessTask(task) {
+  businessRequest++;
   state.businessTasks = [task, ...state.businessTasks.filter(saved => saved.id !== task.id)].sort((a, b) => b.id - a.id);
   renderBusinessTasks();
 }
 async function loadBusinessTasks(quiet = false) {
+  const request = ++businessRequest;
   try {
     if (!quiet) message("Загружаем сохранённые задачи...");
-    const data = await api("/api/business/tasks"); state.businessTasks = data.tasks;
+    const data = await api("/api/me/tasks");
+    if (request !== businessRequest) return;
+    state.businessTasks = data.tasks;
     renderBusinessTasks();
     if (!quiet) message(`Сохранённые задачи загружены: ${data.tasks.length}.`);
   } catch (error) { message(error.message, true); }
@@ -309,7 +349,8 @@ async function loadBusinessTasks(quiet = false) {
 async function openSavedTask(id) {
   if (!canReplaceWork()) return;
   message("Открываем сохранённую задачу...");
-  const task = await api(`/api/tasks/${id}`);
+  const task = await api(`/api/me/tasks/${id}`);
+  view("create");
   clearSource(); $("source").hidden = true;
   state.taskId = task.id; state.card = task.card;
   $("topic").value = task.topic;
@@ -322,6 +363,8 @@ async function openSavedTask(id) {
 $("refresh-business-tasks").addEventListener("click", event => action(event.currentTarget, () => loadBusinessTasks()));
 
 async function loadTasks(refreshTopics = false) {
+  const request = ++catalogRequest;
+  detailRequest++;
   try {
     message("Загружаем каталог...");
     $("task-detail").hidden = true;
@@ -330,10 +373,14 @@ async function loadTasks(refreshTopics = false) {
     const params = new URLSearchParams();
     if (topic) params.set("topic", topic);
     if (level) params.set("level", level);
+    if ($("catalog-search").value.trim()) params.set("q", $("catalog-search").value.trim());
     const suffix = params.toString() ? `?${params}` : "";
-    const data = await api(`/api/tasks${suffix}`); state.tasks = data.tasks;
+    const data = await api(`/api/catalog/tasks${suffix}`);
+    if (request !== catalogRequest) return;
+    state.tasks = data.tasks;
     if (refreshTopics || !state.topics.length) {
-      const allTasks = suffix ? (await api("/api/tasks")).tasks : data.tasks;
+      const allTasks = suffix ? (await api("/api/catalog/tasks")).tasks : data.tasks;
+      if (request !== catalogRequest) return;
       state.topics = [...new Set(allTasks.map(task => task.topic))];
       const filter = $("topic-filter"), chosen = filter.value;
       filter.replaceChildren(new Option("Все темы", ""), ...state.topics.map(t => new Option(t, t)));
@@ -354,7 +401,7 @@ function renderTasks() {
     rating.setAttribute("aria-label", `Готовность: ${task.score} из 100`);
     rating.append(el("strong", task.score), el("span", "/ 100"));
     top.append(el("span", task.topic, "chip"), rating);
-    const open = el("button", "Посмотреть и откликнуться", "secondary");
+    const open = el("button", state.user.role === "TEAM" ? "Посмотреть и откликнуться" : "Открыть задачу", "secondary");
     open.addEventListener("click", () => openTask(task.id));
     const footer = el("div", null, "task-card-footer");
     footer.append(el("span", `Готовность: ${LEVELS[task.level].toLowerCase()}`, `level-label level-${task.level}`), open);
@@ -367,53 +414,63 @@ $("level-filter").addEventListener("change", () => loadTasks());
 $("refresh").addEventListener("click", () => loadTasks(true));
 
 async function openTask(id) {
+  const request = ++detailRequest;
   try {
-    message("Загружаем задачу и список команд...");
-    const task = await api(`/api/tasks/${id}`);
+    message("Открываем задачу…");
+    const task = await api("/api/catalog/tasks/" + id);
+    if (request !== detailRequest) return;
     const detail = $("task-detail"); detail.replaceChildren();
-    detail.append(el("span", `${task.topic} · ${LEVELS[task.level]} · ${task.score}/100`, "eyebrow"), el("h2", task.card.title));
+    detail.append(el("span", task.topic + " · " + LEVELS[task.level] + " · " + task.score + "/100", "eyebrow"), el("h2", task.card.title));
     const fields = el("div", null, "detail-grid");
     for (const [key, title] of Object.entries(FIELDS)) {
       if (key === "title") continue;
       const cell = el("div"); cell.append(el("b", title), el("span", task.card[key] || "Не указано")); fields.append(cell);
     }
-    detail.append(fields, el("h2", "Предложить решение"));
-    const form = el("form"), teamLabel = el("label", "Команда"), teamSelect = el("select");
-    form.noValidate = true;
-    teamSelect.required = true;
-    const teams = await api("/api/teams"); state.teams = teams.teams;
-    for (const team of teams.teams) teamSelect.add(new Option(`${team.name} · ${team.points} баллов`, team.id));
-    teamLabel.append(teamSelect); form.append(teamLabel);
+    detail.append(fields); detail.hidden = false; reveal(detail);
+    if (state.user.role !== "TEAM") { message("Опубликованная карточка задачи."); return; }
+    const {team} = await api("/api/me/team");
+    if (request !== detailRequest) return;
+    if (!team) {
+      const button = el("button", "Заполнить профиль команды →", "primary");
+      button.type = "button"; button.addEventListener("click", () => view("team-profile"));
+      detail.append(el("p", "Чтобы отправить отклик, расскажите о вашей команде."), button);
+      message("Создайте профиль команды, чтобы предложить решение."); return;
+    }
+    detail.append(el("h2", "Ваш подход к решению"), el("p", "Отклик от команды «" + team.name + "»", "hint"));
+    const form = el("form"); form.noValidate = true;
     const inputs = {};
-    for (const [key, labelText, tag] of [["idea","Идея решения","textarea"],["plan","План","textarea"],["duration_days","Срок в днях","input"],["prototype_url","Ссылка на прототип","input"]]) {
-      const label = el("label", labelText), input = el(tag); inputs[key] = input;
+    for (const [key, title, tag] of [["idea","Идея решения","textarea"],["plan","План","textarea"],["duration_days","Срок в днях","input"],["prototype_url","Ссылка на прототип","input"]]) {
+      const label = el("label", title), input = el(tag); inputs[key] = input;
+      input.id = "proposal-" + key; label.htmlFor = input.id;
       if (key === "duration_days") { input.type = "number"; input.min = "1"; input.max = "365"; }
-      if (key === "prototype_url") { input.type = "url"; input.placeholder = "https://example.org/prototype"; }
+      if (key === "prototype_url") { input.type = "url"; input.placeholder = "https://…"; }
       if (key === "idea" || key === "plan") { input.minLength = 10; input.maxLength = 2000; }
-      input.required = true; label.append(input); form.append(label);
+      input.required = true; form.append(label, input);
     }
     const submit = el("button", "Отправить предложение", "primary"); submit.type = "submit"; form.append(submit);
     form.addEventListener("submit", event => {event.preventDefault(); action(submit, async () => {
       if (inputs.idea.value.trim().length < 10 || inputs.plan.value.trim().length < 10) throw new Error("Идея и план должны содержать не менее 10 символов");
       const duration = Number(inputs.duration_days.value);
       if (!Number.isInteger(duration) || duration < 1 || duration > 365) throw new Error("Укажите срок от 1 до 365 дней");
-      let prototypeUrl;
-      try { prototypeUrl = new URL(inputs.prototype_url.value.trim()); } catch { throw new Error("Укажите полный URL прототипа, например https://example.org/demo"); }
-      if (!["http:", "https:"].includes(prototypeUrl.protocol)) throw new Error("URL прототипа должен начинаться с http:// или https://");
-      await api(`/api/tasks/${id}/proposals`, "POST", {team_id: Number(teamSelect.value),
+      let url;
+      try { url = new URL(inputs.prototype_url.value.trim()); } catch { throw new Error("Укажите полный URL прототипа"); }
+      if (!["http:", "https:"].includes(url.protocol)) throw new Error("Ссылка должна начинаться с http:// или https://");
+      await api("/api/catalog/tasks/" + id + "/proposals", "POST", {
         idea: inputs.idea.value.trim(), plan: inputs.plan.value.trim(),
-        duration_days: duration, prototype_url: inputs.prototype_url.value.trim()});
-      message("Предложение отправлено. Решение примет бизнес."); form.reset();
+        duration_days: duration, prototype_url: url.href});
+      const confirmation = el("div", null, "empty-state");
+      confirmation.append(el("h3", "Первый шаг сделан"), el("p", "Отклик отправлен. Решение бизнеса появится в разделе «Мои отклики»."));
+      form.replaceWith(confirmation);
+      message("Предложение отправлено. Решение примет бизнес.");
     });});
-    detail.append(form); detail.hidden = false; reveal(detail);
-    message("Задача загружена. Заполните все поля отклика.");
+    detail.append(form); message("Задача открыта. Предложите свой подход.");
   } catch (error) { message(error.message, true); }
 }
 
 async function loadBusiness() {
   try {
     message("Загружаем задачи бизнеса и отклики...");
-    const data = await api("/api/tasks"); state.tasks = data.tasks;
+    const data = await api("/api/me/tasks"); data.tasks = data.tasks.filter(task => task.status === "published"); state.tasks = data.tasks;
     const select = $("business-task"), previous = select.value;
     select.replaceChildren(...data.tasks.map(task => new Option(`${task.card.title} · ${task.score}/100`, task.id)));
     if (data.tasks.some(task => String(task.id) === previous)) select.value = previous;
@@ -428,7 +485,7 @@ async function loadProposals(successMessage = "") {
   list.replaceChildren();
   if (!taskId) { list.append(el("p", "Сначала опубликуйте задачу.")); message("Опубликованных задач пока нет."); return; }
   try {
-    const [{proposals}, {teams}] = await Promise.all([api(`/api/tasks/${taskId}/proposals`), api("/api/teams")]);
+    const [{proposals}, {teams}] = await Promise.all([api(`/api/me/tasks/${taskId}/proposals`), api("/api/catalog/teams")]);
     if (request !== proposalRequest || $("business-task").value !== taskId) return;
     list.replaceChildren();
     if (!proposals.length) { list.append(el("p", "Пока нет предложений.")); message("Отклики загружены: пока ни одного."); return; }
@@ -445,7 +502,7 @@ async function loadProposals(successMessage = "") {
         const button = el("button", title, status === "selected" ? "primary" : "secondary");
         button.disabled = p.status === status;
         button.addEventListener("click", () => action(button, async () => {
-          await api(`/api/proposals/${p.id}`, "PATCH", {status});
+          await api(`/api/me/proposals/${p.id}`, "PATCH", {status});
           await loadProposals("Решение сохранено вручную. Остальные отклики не изменены.");
         })); actions.append(button);
       }
@@ -453,7 +510,7 @@ async function loadProposals(successMessage = "") {
         const button = el("button", p.milestone_confirmed ? "Этап подтверждён" : "Подтвердить этап +10", "secondary");
         button.disabled = p.milestone_confirmed;
         button.addEventListener("click", () => action(button, async () => {
-          await api(`/api/proposals/${p.id}/milestones/confirm`, "POST", {});
+          await api(`/api/me/proposals/${p.id}/milestones/confirm`, "POST", {});
           await loadProposals("Этап подтверждён: за этот этап начислено 10 баллов однократно.");
         })); actions.append(button);
       }
@@ -466,4 +523,116 @@ $("business-task").addEventListener("change", () => loadProposals());
 $("topic").addEventListener("input", markDirty);
 $("source").addEventListener("input", () => { state.sourceDirty = true; });
 $("topic").addEventListener("input", () => { if (!state.card) state.sourceDirty = true; });
-view("create");
+
+$("manual-card").addEventListener("click", () => {
+  if (state.busy || (state.dirty && !canReplaceWork())) return;
+  const card = Object.fromEntries(Object.keys(FIELDS).map(key => [key, ""]));
+  card.context = $("draft").value.trim().slice(0, 2000);
+  state.card = card; state.taskId = null; state.sourceDirty = false;
+  resetScore(); renderEditor(card);
+  $("editor-kind").textContent = "Новая карточка";
+  setStage("03 / 03", "Заполнить и сохранить");
+  message("Заполните известные сведения. AI можно использовать при создании следующей задачи.");
+});
+$("start-new-task").addEventListener("click", () => {
+  view("create"); $("new-task").click();
+});
+$("catalog-search").addEventListener("keydown", event => {
+  if (event.key === "Enter") { event.preventDefault(); loadTasks(); }
+});
+
+async function loadTeamProfile() {
+  if (state.profileDirty) return;
+  const controls = [...$("team-profile-form").querySelectorAll("input, button")];
+  controls.forEach(control => { control.disabled = true; });
+  try {
+    const {team} = await api("/api/me/team");
+    $("team-name").value = team?.name || "";
+    for (const key of ["skills", "technologies", "interests"]) $("team-" + key).value = (team?.[key] || []).join(", ");
+    $("team-points").textContent = team ? "Баллы за подтверждённые этапы: " + team.points : "";
+  } catch (error) { message(error.message, true); }
+  finally { controls.forEach(control => { control.disabled = false; }); }
+}
+$("team-profile-form").addEventListener("input", () => { state.profileDirty = true; });
+$("team-profile-form").addEventListener("submit", event => {
+  event.preventDefault();
+  action(event.currentTarget.querySelector('button[type="submit"]'), async () => {
+    const payload = {name: $("team-name").value.trim()};
+    for (const key of ["skills", "technologies", "interests"]) {
+      payload[key] = $("team-" + key).value.split(",").map(value => value.trim()).filter(Boolean);
+      if (payload[key].length > 16 || payload[key].some(value => value.length > 80)) throw new Error("До 16 пунктов, каждый — не длиннее 80 символов.");
+    }
+    if (!payload.skills.length) throw new Error("Добавьте хотя бы один навык.");
+    const {team} = await api("/api/me/team", "PUT", payload);
+    state.profileDirty = false;
+    $("team-points").textContent = "Баллы за подтверждённые этапы: " + team.points;
+    message("Профиль сохранён. Теперь можно выбрать задачу и отправить отклик.");
+  });
+});
+
+async function loadMyProposals() {
+  try {
+    const {proposals} = await api("/api/me/proposals"), list = $("my-proposal-list");
+    list.replaceChildren();
+    if (!proposals.length) {
+      const empty = el("div", null, "empty-state"), button = el("button", "Найти свою задачу →", "primary");
+      button.type = "button"; button.addEventListener("click", () => view("catalog"));
+      empty.append(el("h2", "Покажите, что вы можете"), el("p", "Выберите задачу в каталоге и предложите свой подход."), button);
+      list.append(empty);
+    }
+    for (const proposal of proposals) {
+      const box = el("article", null, "panel");
+      box.append(el("span", proposal.status === "selected" ? "Команда выбрана" : proposal.status === "rejected" ? "Отклик отклонён" : "Ожидает решения", "proposal-status"),
+        el("h2", proposal.task_title), el("p", proposal.idea),
+        el("p", proposal.milestone_confirmed ? "Этап подтверждён · +10 баллов" : "Срок: " + proposal.duration_days + " дн.", "hint"));
+      list.append(box);
+    }
+    message("");
+  } catch (error) { message(error.message, true); }
+}
+
+function applySession(session) {
+  state.user = session.user; state.csrf = session.csrf_token;
+  $("account-email").textContent = session.user.email;
+  $("account-role").textContent = session.user.role === "BUSINESS" ? "Бизнес-аккаунт" : "Команда";
+  $("account-avatar").textContent = session.user.email.charAt(0).toUpperCase();
+  document.querySelectorAll("[data-access]").forEach(node => { node.hidden = node.dataset.access !== session.user.role; });
+}
+async function boot() {
+  try {
+    const session = await SolvexAuth.getSession(true);
+    if (!session) { location.replace("/?auth=login"); return; }
+    applySession(session);
+    document.body.classList.remove("booting");
+    $("boot-state").hidden = true;
+    view(location.hash.slice(1) || (session.user.role === "BUSINESS" ? "create" : "catalog"));
+  } catch (error) {
+    $("boot-state").firstChild.textContent = error.message + " ";
+    $("retry-session").hidden = false;
+  }
+}
+$("retry-session").addEventListener("click", boot);
+window.addEventListener("solvex:session", event => {
+  if (state.user && state.user.id !== event.detail.user.id) {
+    state.dirty = state.sourceDirty = state.profileDirty = false;
+    document.body.classList.add("booting");
+    $("card-fields").replaceChildren();
+    location.replace("/app"); return;
+  }
+  applySession(event.detail);
+  message("Вход восстановлен. Можно продолжить с несохранёнными изменениями.");
+});
+$("logout").addEventListener("click", event => {
+  if (state.busy) { message("Дождитесь завершения текущего действия."); return; }
+  if (!canReplaceWork()) return;
+  action(event.currentTarget, async () => {
+    await api("/api/auth/logout", "POST", {});
+    state.dirty = state.sourceDirty = state.profileDirty = false; state.user = null; state.csrf = "";
+    location.replace("/");
+  });
+});
+window.addEventListener("beforeunload", event => {
+  if (state.dirty || state.sourceDirty || state.profileDirty) { event.preventDefault(); event.returnValue = ""; }
+});
+window.addEventListener("hashchange", () => view(location.hash.slice(1)));
+boot();

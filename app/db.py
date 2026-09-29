@@ -79,6 +79,10 @@ def init_db() -> None:
         if "owner_user_id" not in task_columns:
             db.execute("ALTER TABLE tasks ADD COLUMN owner_user_id INTEGER REFERENCES users(id)")
         db.execute("CREATE INDEX IF NOT EXISTS tasks_owner_id ON tasks(owner_user_id, id)")
+        team_columns = {row["name"] for row in db.execute("PRAGMA table_info(teams)")}
+        if "owner_user_id" not in team_columns:
+            db.execute("ALTER TABLE teams ADD COLUMN owner_user_id INTEGER REFERENCES users(id)")
+        db.execute("CREATE UNIQUE INDEX IF NOT EXISTS teams_owner_id ON teams(owner_user_id)")
         if db.execute("SELECT COUNT(*) FROM teams").fetchone()[0]:
             return
         examples = [

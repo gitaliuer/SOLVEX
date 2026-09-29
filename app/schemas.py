@@ -49,12 +49,34 @@ class CardGenerationInput(DraftInput):
     answers: list[Answer] = Field(default_factory=list, max_length=5)
 
 
-class ProposalInput(InputModel):
-    team_id: int = Field(gt=0, strict=True)
+class ProposalContent(InputModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+
     idea: str = Field(min_length=10, max_length=2000)
     plan: str = Field(min_length=10, max_length=2000)
     duration_days: int = Field(ge=1, le=365, strict=True)
     prototype_url: HttpUrl
+
+
+class ProposalInput(ProposalContent):
+    team_id: int = Field(gt=0, strict=True)
+
+
+class TeamProfileInput(InputModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+
+    name: str = Field(min_length=2, max_length=100)
+    interests: list[str] = Field(default_factory=list, max_length=16)
+    skills: list[str] = Field(min_length=1, max_length=16)
+    technologies: list[str] = Field(default_factory=list, max_length=16)
+
+    @field_validator("interests", "skills", "technologies")
+    @classmethod
+    def profile_tags(cls, values: list[str]) -> list[str]:
+        tags = list(dict.fromkeys(value.strip() for value in values))
+        if any(not value or len(value) > 80 for value in tags):
+            raise ValueError("Каждый пункт должен содержать от 1 до 80 символов")
+        return tags
 
 
 class DecisionInput(InputModel):

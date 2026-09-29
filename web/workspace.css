@@ -1,0 +1,940 @@
+/* Product skin around the existing editor and its tested field behaviour. */
+.workspace .skip-link:not(:focus-visible) {
+  top:-100px
+}
+.workspace .skip-link:focus-visible {
+  top:8px
+}
+:root {
+  --green:#64d5c5;
+  --tint:#211b3b
+}
+.workspace {
+  background:#0a0e17;
+  color:#e4e7f1;
+  font-size:14px;
+  min-height:100vh
+}
+.app-sidebar {
+  position:fixed;
+  left:0;
+  top:0;
+  bottom:0;
+  width:226px;
+  padding:30px 19px 20px;
+  background:#080c14;
+  border-right:1px solid #202636;
+  z-index:10;
+  display:flex;
+  flex-direction:column
+}
+.app-sidebar>.solvex-brand {
+  padding-left:6px;
+  margin-bottom:45px
+}
+.app-sidebar .solvex-brand span {
+  font-size:19px;
+  letter-spacing:3px
+}
+.sidebar-label {
+  color:#59657d;
+  font-size:9px;
+  letter-spacing:.09em;
+  text-transform:uppercase;
+  padding-left:14px;
+  margin-bottom:12px
+}
+.app-sidebar nav {
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  background:none;
+  border:0;
+  padding:0;
+  align-items:stretch;
+  border-radius:0
+}
+.app-sidebar nav button {
+  text-align:left;
+  border:1px solid transparent;
+  display:flex;
+  align-items:center;
+  gap:13px;
+  padding:12px 13px;
+  font-size:12px;
+  font-weight:500;
+  color:#919cb4;
+  border-radius:8px;
+  box-shadow:none;
+  min-height:44px
+}
+.app-sidebar nav button span {
+  font-size:19px;
+  width:20px;
+  text-align:center;
+  color:#6f7b93;
+  line-height:1
+}
+.app-sidebar nav button.selected {
+  color:#d7cbff;
+  background:#795ee717;
+  border-color:#9475ee25
+}
+.app-sidebar nav button.selected span {
+  color:#a18bff
+}
+.app-sidebar nav button:hover {
+  background:#ffffff05;
+  color:#fff
+}
+.app-sidebar nav .sidebar-about {
+  margin-top:18px
+}
+.sidebar-bottom {
+  margin-top:auto;
+  border-top:1px solid #1d2332;
+  display:flex;
+  gap:12px;
+  align-items:flex-start;
+  padding:23px 10px 0
+}
+.sidebar-bottom .live-dot {
+  margin-top:7px
+}
+.sidebar-bottom p {
+  font-size:10px;
+  color:#646f87;
+  margin:0;
+  line-height:1.8
+}
+.sidebar-bottom strong {
+  font-weight:400;
+  color:#949cb2
+}
+.app-topbar {
+  margin-left:226px;
+  padding:17px 35px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  background:#0a0e17cc;
+  border-bottom:1px solid #202636;
+  gap:16px;
+  min-height:82px
+}
+.app-topbar>#page-label {
+  font-size:12px;
+  color:#858fa6
+}
+.account-area {
+  display:flex;
+  align-items:center;
+  gap:11px
+}
+.account-area>div {
+  max-width:250px;
+  min-width:0
+}
+.account-area #account-email {
+  display:block;
+  font-size:11px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap
+}
+.account-area small {
+  display:block;
+  color:#707e97;
+  font-size:9px
+}
+.account-avatar {
+  width:31px;
+  height:31px;
+  display:grid;
+  place-items:center;
+  border-radius:50%;
+  background:#30244f;
+  color:#cabbf6;
+  font-size:12px
+}
+.account-area .text-button {
+  font-size:11px;
+  min-height:36px;
+  padding:8px 10px;
+  color:#8d97b0
+}
+.workspace>.shell {
+  max-width:1600px;
+  margin-left:226px;
+  margin-right:0;
+  padding-inline:35px
+}
+.workspace main {
+  min-height:calc(100vh - 162px);
+  padding-bottom:25px
+}
+#boot-state {
+  margin:60px 35px 0 261px;
+  color:#919db4
+}
+.booting #main,.booting .app-sidebar nav {
+  visibility:hidden
+}
+.workspace h1,.workspace h2 {
+  color:#edf0f9
+}
+.workspace h1 {
+  font-size:34px;
+  font-weight:500;
+  letter-spacing:-1.3px
+}
+.workspace .intro {
+  margin:34px 0 28px
+}
+.workspace .intro p {
+  font-size:12px;
+  color:#8d97b0;
+  line-height:1.8
+}
+.workspace #create .intro {
+  margin:32px 0 26px
+}
+.workspace #create .intro h1 {
+  font-size:34px;
+  font-weight:500;
+  margin-block:12px
+}
+.workspace .eyebrow {
+  color:#83809f;
+  font-size:9px;
+  font-weight:500
+}
+.workspace button {
+  font-size:12px;
+  min-height:42px
+}
+.workspace .primary {
+  background:#775cf6;
+  border-color:#9782ff;
+  color:white
+}
+.workspace .primary:hover:not(:disabled) {
+  background:#886cfc
+}
+.workspace .secondary {
+  background:#151a28;
+  color:#b7bfd3;
+  border:1px solid #30374a
+}
+.workspace .text-button {
+  background:none;
+  border:0;
+  color:#ad9fda;
+  box-shadow:none
+}
+.workspace .panel,.workspace .saved-tasks,.workspace .proposal-selector,.workspace .task-card,.workspace .empty-state,.workspace #proposal-list article {
+  background:#101522;
+  border-color:#252c3e;
+  box-shadow:none
+}
+.workspace input,.workspace textarea,.workspace select {
+  background:#0b101b;
+  border:1px solid #2c3448;
+  color:#e7eaf3;
+  border-radius:7px;
+  font-size:13px;
+  padding:11px 13px;
+  line-height:1.65
+}
+.workspace input::placeholder,.workspace textarea::placeholder {
+  color:#65718c
+}
+.workspace label {
+  font-size:12px;
+  color:#b0b8cc
+}
+.workspace input:focus,.workspace textarea:focus,.workspace select:focus {
+  border-color:#8671d7
+}
+.workspace .hint {
+  color:#7d89a4;
+  font-size:11px
+}
+.workspace .saved-tasks {
+  border-radius:9px
+}
+.workspace .saved-tasks>summary {
+  font-size:12px;
+  color:#949fb8;
+  padding:13px 18px
+}
+.workspace .count {
+  background:#2a2441;
+  color:#b9a6f6
+}
+.workspace .saved-content {
+  border-top:1px solid #242c3e;
+  padding:20px
+}
+.workspace .saved-task {
+  border-color:#2a3246;
+  background:#0c111d
+}
+.workspace .saved-task strong {
+  font-size:14px;
+  color:#e2e5f0
+}
+.workspace .saved-task span {
+  color:#8a96b1;
+  font-size:11px
+}
+.workspace .saved-task .eyebrow {
+  font-size:9px;
+  color:#ab91ee
+}
+.workspace .step-track li {
+  font-size:11px;
+  font-weight:500;
+  color:#68748d
+}
+.workspace .step-track li>span {
+  border-color:#30364a;
+  background:#111726;
+  color:#78849d
+}
+.workspace .step-track li[aria-current=step] {
+  color:#c3b6f4
+}
+.workspace .step-track li[aria-current=step]>span {
+  background:#332658;
+  border-color:#63508f;
+  color:#d4c5ff
+}
+.workspace .step-track li.done>span {
+  background:#173c39;
+  border-color:#22514b;
+  color:#7ee1d4
+}
+.workspace .stage {
+  color:#8793ad;
+  font-size:10px
+}
+.workspace .stage>span {
+  background:#191e30;
+  color:#b0a2d7
+}
+.workspace .source-layout {
+  gap:20px;
+  grid-template-columns:minmax(0,1fr) 265px
+}
+.workspace .source-guide {
+  background:linear-gradient(135deg,#1b1731,#101723);
+  border:1px solid #302941;
+  border-radius:12px;
+  padding:26px
+}
+.workspace .guide-logo {
+  margin-bottom:22px
+}
+.workspace .source-guide h2 {
+  font-size:24px;
+  font-weight:500;
+  letter-spacing:-.9px;
+  color:#e1dbf4
+}
+.workspace .source-guide>p {
+  font-size:12px;
+  color:#8c8ba5
+}
+.workspace .source-guide ol {
+  border-color:#332d45;
+  gap:15px
+}
+.workspace .source-guide li strong {
+  color:#b8b5cd;
+  font-weight:500;
+  font-size:11px
+}
+.workspace .source-guide li span,.workspace .source-guide li::before {
+  color:#807b98;
+  font-size:10px
+}
+.workspace .source>summary {
+  color:#cbd1e2;
+  border-color:#282e40;
+  font-size:14px
+}
+.workspace #draft {
+  min-height:130px;
+  resize:vertical
+}
+.workspace .source-action {
+  gap:12px
+}
+.workspace .source-action button {
+  font-size:11px
+}
+.workspace .source-content {
+  padding:24px
+}
+.workspace .workspace-heading {
+  margin-block:22px
+}
+.workspace #questions {
+  border-color:#293145
+}
+.workspace #questions h2 {
+  font-size:20px
+}
+.workspace .editor-heading h2 {
+  font-weight:500
+}
+.workspace .tag {
+  background:#211b34;
+  color:#b6a1ee;
+  font-size:10px;
+  border:1px solid #493466
+}
+.workspace .field-group {
+  border-color:#293042
+}
+.workspace .field-group legend {
+  font-weight:500;
+  font-size:17px
+}
+.workspace .field-grid>div:has(.check input:checked)>textarea {
+  background:#0c191e;
+  border-color:#285951
+}
+.workspace .check {
+  font-size:10px;
+  color:#7e89a3
+}
+.workspace .check:has(input:checked) {
+  color:#77c7b6
+}
+.workspace .score {
+  color:#ded4ff;
+  font-size:54px
+}
+.workspace .meter {
+  background:#252c40
+}
+.workspace .meter i {
+  background:linear-gradient(90deg,#8767f5,#51c9c7);
+  transition:width .3s
+}
+.workspace .side {
+  border-top:2px solid #7b62cf;
+  background:#111625;
+  top:20px;
+  max-height:calc(100vh - 40px)
+}
+.workspace .side h2 {
+  color:#8591aa
+}
+.workspace .unsaved,.workspace .score-note {
+  background:#272139;
+  color:#baa9df;
+  font-size:11px
+}
+.workspace .next-edit {
+  background:#201c34;
+  border-color:#3b3155;
+  color:#b9a0f2;
+  font-size:11px
+}
+.workspace .score-breakdown li.earned {
+  color:#69c7b6
+}
+.workspace .score-details {
+  border-color:#2a3043
+}
+.workspace .missing-link {
+  font-size:11px;
+  color:#a992ef
+}
+.workspace #notice {
+  top:10px;
+  font-size:12px
+}
+.workspace #notice:not(:empty) {
+  background:#162032;
+  border-color:#303f5b;
+  color:#b9c8e3;
+  box-shadow:0 8px 30px #0003;
+  padding:11px 15px
+}
+.workspace #notice.error {
+  background:#301c29;
+  border-color:#633344;
+  color:#f5adb7
+}
+.workspace .catalog-intro {
+  background:linear-gradient(110deg,#161b2b,#132428);
+  border-color:#253b41;
+  padding:28px 32px
+}
+.workspace .catalog-intro h1 {
+  color:#e5f4ef;
+  font-size:34px
+}
+.workspace .catalog-intro .eyebrow {
+  color:#6ebbb2
+}
+.workspace .catalog-intro p {
+  color:#8baaa8
+}
+.workspace .catalog-total {
+  border-color:#2b4a4a;
+  color:#73cbbd
+}
+.workspace .catalog-total strong {
+  font-size:55px
+}
+.workspace .catalog-total span {
+  font-size:10px
+}
+.workspace .filters {
+  gap:14px;
+  flex-wrap:wrap
+}
+.workspace .filters input {
+  margin:6px 0 0;
+  width:100%
+}
+.workspace .filters label {
+  min-width:130px
+}
+.workspace .filters label:first-child {
+  flex:1.5
+}
+.workspace .cards {
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:18px
+}
+.workspace .task-card:hover {
+  border-color:#475372;
+  transform:translateY(-2px)
+}
+.workspace .task-card {
+  transition:transform .2s,border-color .2s
+}
+.workspace .task-card h2 {
+  font-size:21px;
+  font-weight:500
+}
+.workspace .task-card p {
+  font-size:12px;
+  color:#8c99b1
+}
+.workspace .task-rating {
+  color:#7ad1c3
+}
+.workspace .chip {
+  background:#1b2b33;
+  color:#8ac6be;
+  font-size:10px
+}
+.workspace .task-card-footer {
+  border-color:#273242
+}
+.workspace .task-card button {
+  background:#14202a;
+  border-color:#30424c;
+  color:#9acbbf
+}
+.workspace .task-card button:hover {
+  background:#1c3037
+}
+.workspace .task-card.level-priority {
+  border-top-color:#56ad99
+}
+.workspace .empty-state {
+  border-style:dashed;
+  padding:35px 24px
+}
+.workspace .empty-state h2 {
+  font-weight:500;
+  font-size:22px
+}
+.workspace .empty-state p {
+  color:#8391ab;
+  font-size:12px
+}
+.workspace .empty-state .primary {
+  margin-top:14px
+}
+.workspace .detail-grid div {
+  border-color:#273046;
+  color:#a7b2c8;
+  font-size:12px
+}
+.workspace .detail-grid b {
+  color:#dee3ef;
+  font-weight:500
+}
+.workspace #task-detail form {
+  background:#0d121f;
+  border-color:#2a3246
+}
+.workspace #task-detail form label {
+  display:block;
+  margin-top:16px
+}
+.workspace #task-detail form button {
+  margin-top:20px
+}
+.workspace .proposal-status {
+  background:#1d2439;
+  border-color:#323e59;
+  color:#b0bfdf;
+  font-size:10px
+}
+.workspace #proposal-list article.selected {
+  border-color:#3c796e
+}
+.workspace #proposal-list article.selected .proposal-status {
+  background:#17372f;
+  border-color:#295a4f;
+  color:#87d8be
+}
+.workspace #proposal-list h3 {
+  font-weight:500;
+  font-size:21px
+}
+.workspace #proposal-list article>p {
+  font-size:12px
+}
+.workspace .team-profile {
+  border-color:#2b3346;
+  font-size:11px
+}
+.workspace .proposal-meta {
+  font-size:11px
+}
+.workspace #proposal-list a {
+  color:#b19ced;
+  font-size:12px
+}
+.workspace .my-task-list {
+  display:grid;
+  gap:14px
+}
+.workspace .my-task-list .saved-task {
+  padding:23px;
+  border-radius:12px;
+  align-items:center
+}
+.workspace .my-task-list strong {
+  font-size:18px
+}
+.workspace .my-task-list .saved-task>div {
+  display:grid;
+  gap:7px
+}
+.workspace .profile-form {
+  max-width:640px;
+  padding:28px
+}
+.workspace .profile-form label {
+  display:block;
+  margin-top:18px
+}
+.workspace .profile-form label:first-child {
+  margin-top:0
+}
+.workspace .profile-form button {
+  margin-top:10px
+}
+.workspace #team-points {
+  display:block;
+  margin-top:15px
+}
+.workspace .proposal-cards {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:20px
+}
+.workspace .proposal-cards h2 {
+  font-size:21px
+}
+.workspace .proposal-cards .proposal-status {
+  display:inline-block;
+  margin-bottom:18px
+}
+.workspace .proposal-cards p {
+  font-size:12px;
+  color:#8d9ab3
+}
+.workspace footer {
+  font-size:10px;
+  border-top:1px solid #1e2637;
+  color:#5e6c86
+}
+.workspace footer a {
+  color:#8592ad
+}
+@media(min-width:1500px) {
+  .workspace .cards {
+    grid-template-columns:repeat(3,minmax(0,1fr))
+  }
+  .workspace .source-layout {
+    grid-template-columns:minmax(0,1fr) 310px
+  }
+}
+@media(max-width:1150px) {
+  .app-sidebar {
+    width:195px;
+    padding-inline:12px
+  }
+  .app-sidebar .solvex-brand span {
+    font-size:17px
+  }
+  .workspace>.shell {
+    margin-left:195px;
+    padding-inline:25px
+  }
+  .app-topbar {
+    margin-left:195px;
+    padding-inline:25px
+  }
+  .workspace .source-layout {
+    grid-template-columns:minmax(0,1fr) 220px;
+    gap:16px
+  }
+  .workspace .source-guide {
+    padding:22px
+  }
+  .workspace .source-guide h2 {
+    font-size:22px
+  }
+  .workspace .source-action {
+    flex-wrap:wrap
+  }
+  .workspace .editor-layout {
+    grid-template-columns:minmax(0,1fr) 270px;
+    gap:18px
+  }
+  .workspace .field-grid {
+    grid-template-columns:1fr
+  }
+}
+@media(max-width:900px) {
+  .app-sidebar {
+    width:170px;
+    padding-inline:9px
+  }
+  .app-sidebar>.solvex-brand {
+    gap:6px
+  }
+  .app-sidebar .solvex-brand span {
+    font-size:15px;
+    letter-spacing:2px
+  }
+  .app-sidebar nav button {
+    font-size:10px;
+    gap:9px;
+    padding-inline:10px
+  }
+  .workspace>.shell {
+    margin-left:170px;
+    padding-inline:23px
+  }
+  .app-topbar {
+    margin-left:170px;
+    padding-inline:23px
+  }
+  .workspace .source-layout {
+    grid-template-columns:minmax(0,1fr)
+  }
+  .workspace .source-guide {
+    display:none
+  }
+  .workspace .editor-layout {
+    grid-template-columns:minmax(0,1fr)
+  }
+  .workspace .side {
+    position:static;
+    max-height:none;
+    order:-1
+  }
+  .workspace .editor-actions {
+    grid-template-columns:1fr 1fr
+  }
+  .workspace .cards {
+    grid-template-columns:1fr
+  }
+  .workspace #proposal-list {
+    grid-template-columns:1fr
+  }
+  .workspace #create .intro h1 {
+    font-size:29px
+  }
+  .workspace .account-area>div {
+    max-width:170px
+  }
+}
+@media(max-width:680px) {
+  .app-sidebar {
+    position:static;
+    width:auto;
+    padding:19px 18px 10px;
+    border-right:0;
+    border-bottom:1px solid #202636;
+    display:block
+  }
+  .app-sidebar>.solvex-brand {
+    margin-bottom:17px
+  }
+  .app-sidebar .solvex-brand span {
+    font-size:17px;
+    letter-spacing:3px
+  }
+  .sidebar-label,.sidebar-bottom {
+    display:none
+  }
+  .app-sidebar nav {
+    flex-direction:row;
+    flex-wrap:nowrap;
+    overflow-x:auto;
+    scrollbar-width:none;
+    gap:5px
+  }
+  .app-sidebar nav::-webkit-scrollbar {
+    display:none
+  }
+  .app-sidebar nav button {
+    white-space:nowrap;
+    font-size:11px;
+    gap:7px;
+    padding:10px;
+    flex:none;
+    min-height:39px
+  }
+  .app-sidebar nav button span {
+    font-size:16px;
+    width:16px
+  }
+  .app-sidebar nav .sidebar-about {
+    margin-top:0
+  }
+  .app-topbar {
+    margin-left:0;
+    padding:12px 18px;
+    min-height:62px
+  }
+  .app-topbar>#page-label {
+    font-size:10px
+  }
+  .account-avatar {
+    display:none
+  }
+  .account-area {
+    gap:5px
+  }
+  .workspace .account-area>div {
+    max-width:150px
+  }
+  .workspace>.shell {
+    margin-left:0;
+    padding-inline:18px
+  }
+  .workspace #create .intro,.workspace .intro {
+    margin:23px 0
+  }
+  .workspace #create .intro h1,.workspace h1 {
+    font-size:28px;
+    letter-spacing:-.9px
+  }
+  .workspace .intro p {
+    font-size:11px
+  }
+  .workspace .intro {
+    gap:15px
+  }
+  .workspace .intro>button {
+    min-height:38px
+  }
+  .workspace .source-content {
+    padding:19px
+  }
+  .workspace #draft {
+    min-height:135px
+  }
+  .workspace .step-track li {
+    font-size:10px
+  }
+  .workspace .step-track li>span {
+    width:23px;
+    height:23px
+  }
+  .workspace .workspace-heading {
+    margin-block:20px
+  }
+  .workspace .source-action>button {
+    font-size:12px
+  }
+  .workspace .source-action .text-button {
+    min-height:32px
+  }
+  .workspace .catalog-intro {
+    padding:23px
+  }
+  .workspace .catalog-intro h1 {
+    font-size:29px
+  }
+  .workspace .catalog-total {
+    border-left:0;
+    border-top:1px solid #2c4948
+  }
+  .workspace .catalog-total strong {
+    font-size:32px
+  }
+  .workspace .filters {
+    gap:13px
+  }
+  .workspace .filters label {
+    width:100%;
+    min-width:0
+  }
+  .workspace .filters button {
+    width:100%
+  }
+  .workspace .my-task-list .saved-task {
+    align-items:stretch;
+    padding:20px
+  }
+  .workspace .proposal-cards {
+    grid-template-columns:1fr
+  }
+  .workspace .side .score {
+    font-size:34px
+  }
+  .workspace .editor-actions button {
+    font-size:10px
+  }
+  .workspace .profile-form {
+    padding:22px
+  }
+  .workspace footer {
+    padding-top:22px!important;
+    padding-bottom:22px!important
+  }
+  #boot-state {
+    margin:40px 18px
+  }
+  .workspace .check {
+    font-size:11px
+  }
+  .workspace .auth-dialog .solvex-brand span {
+    font-size:17px
+  }
+}
+@media(prefers-reduced-motion:reduce) {
+  *,*::before,*::after {
+    scroll-behavior:auto!important;
+    transition:none!important;
+    animation:none!important
+  }
+}

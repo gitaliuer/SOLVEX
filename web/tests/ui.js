@@ -2,25 +2,28 @@
 (async () => {
   const output = document.getElementById("results");
   const frame = document.getElementById("preview");
-  const html = await (await fetch("/", {cache:"no-store"})).text();
+  const html = await (await fetch("/static/workspace.html", {cache:"no-store"})).text();
   const app = await (await fetch("/static/app.js", {cache:"no-store"})).text();
-  frame.srcdoc = html.replace('<script defer src="/static/app.js"></script>', '');
+  frame.srcdoc = html.replace('<script defer src="/static/auth.js"></script>', "").replace('<script defer src="/static/app.js"></script>', '');
   await new Promise(resolve => frame.addEventListener("load", resolve, {once:true}));
   const win = frame.contentWindow, doc = win.document;
+  // srcdoc has no navigable application URL; routing is covered by experience.cjs.
+  win.history.replaceState = () => {};
   const byId = id => doc.getElementById(id);
   const requests = [];
   let failCard = true, failSave = false, saved = null, testRace = false;
   const card = {title:"Тестовая карточка",context:"В магазине остаются продукты",need:"Снизить списания",users:"Менеджеры",data:"",constraints:"",expected_result:"",success_criteria:"",contact:"",interaction_format:""};
+  win.SolvexAuth = {getSession: async () => ({user:{id:1,email:"test@example.org",role:"BUSINESS"},csrf_token:"isolated-test"}),open:()=>{}};
   win.fetch = async (path, options = {}) => {
     const method = options.method || "GET";
     requests.push({path, method});
-    await new Promise(resolve => setTimeout(resolve, path === "/api/tasks/1/proposals" ? 300 : 150));
+    await new Promise(resolve => setTimeout(resolve, path === "/api/me/tasks/1/proposals" ? 300 : 150));
     let status = 200, body;
-    if (path === "/api/ai/questions") body = {questions:[{id:"q1",field:"users",text:"Кто пользуется решением?"},{id:"q2",field:"data",text:"Какие данные доступны?"},{id:"q3",field:"expected_result",text:"Что ожидаете?"}]};
-    else if (path === "/api/ai/card") {
+    if (path === "/api/me/ai/questions") body = {questions:[{id:"q1",field:"users",text:"Кто пользуется решением?"},{id:"q2",field:"data",text:"Какие данные доступны?"},{id:"q3",field:"expected_result",text:"Что ожидаете?"}]};
+    else if (path === "/api/me/ai/card") {
       if (failCard) {status=503; body={error:{message:"Тестовая ошибка AI"}};}
       else body={card,topic:"Ритейл"};
-    } else if (path.startsWith("/api/tasks") && ["POST","PUT"].includes(method)) {
+    } else if (path.startsWith("/api/me/tasks") && ["POST","PUT"].includes(method)) {
       if (failSave) {status=503; body={error:{message:"Тестовая ошибка сохранения"}};}
       else {
         const payload=JSON.parse(options.body);
@@ -29,11 +32,11 @@
         saved={...payload,id:91,status:"draft",score:Object.values(breakdown).reduce((a,b)=>a+b,0),level:"draft",score_breakdown:breakdown,missing_fields:Object.keys(breakdown).filter(k=>!breakdown[k])};
         body=saved;
       }
-    } else if (path === "/api/business/tasks") body={tasks:saved?[saved]:[]};
-    else if (path === "/api/tasks/91" && method === "GET") body=saved;
+    } else if (path === "/api/me/tasks") body={tasks:testRace?[{id:1,card,topic:"Ритейл",score:30,status:"published",level:"draft"},{id:2,card,topic:"Ритейл",score:30,status:"published",level:"draft"}]:(saved?[saved]:[])};
+    else if (path === "/api/me/tasks/91" && method === "GET") body=saved;
     else if (path.endsWith("/proposals")) body={proposals:[{id:1,team_id:1,idea:path.includes('/1/')?'СТАРАЯ ЗАДАЧА':'НОВАЯ ЗАДАЧА',plan:'План проверки',duration_days:14,points:0,status:'pending',prototype_url:'https://example.org/test'}]};
-    else if (path === "/api/tasks") body={tasks:testRace?[{id:1,card,topic:"Ритейл",score:30,level:"draft"},{id:2,card,topic:"Ритейл",score:30,level:"draft"},{id:3,card,topic:"Экология",score:95,level:"priority"}]:[]};
-    else if (path === "/api/teams") body={teams:[{id:1,name:"Команда 1",points:0,skills:["Аналитика","UX"],technologies:["Python","FastAPI"]}]};
+    else if (path === "/api/catalog/tasks") body={tasks:testRace?[{id:1,card,topic:"Ритейл",score:30,level:"draft"},{id:2,card,topic:"Ритейл",score:30,level:"draft"},{id:3,card,topic:"Экология",score:95,level:"priority"}]:[]};
+    else if (path === "/api/catalog/teams") body={teams:[{id:1,name:"Команда 1",points:0,skills:["Аналитика","UX"],technologies:["Python","FastAPI"]}]};
     else throw new Error(`Unexpected test request: ${method} ${path}`);
     return new Response(JSON.stringify(body),{status,headers:{"Content-Type":"application/json"}});
   };
@@ -41,6 +44,8 @@
   const lines=[];
   function check(ok,text) {lines.push(`${ok?"PASS":"FAIL"} ${text}`); output.textContent=lines.join("\n");}
   async function idle() {await new Promise(resolve=>setTimeout(resolve,400));}
+  await idle();
+  byId("topic").value="Ритейл";
   byId("draft").value="В магазине много списаний. Хотим их сократить.";
   byId("ask").click();
   check(byId("ask").disabled && byId("ask").textContent.includes("Подождите"),"Видимое ожидание AI и блокировка кнопки");
@@ -60,7 +65,7 @@
   await idle();
   byId("field-title").value="Обновление той же задачи";
   byId("save").click(); await idle();
-  check(requests.filter(r=>r.path==="/api/tasks"&&r.method==="POST").length===1 && requests.some(r=>r.path==="/api/tasks/91"&&r.method==="PUT") && saved.card.title==="Обновление той же задачи","Повторное сохранение: один POST, затем PUT текущего ID");
+  check(requests.filter(r=>r.path==="/api/me/tasks"&&r.method==="POST").length===1 && requests.some(r=>r.path==="/api/me/tasks/91"&&r.method==="PUT") && saved.card.title==="Обновление той же задачи","Повторное сохранение: один POST, затем PUT текущего ID");
   failSave=true; byId("field-data").value="Несохранённые данные";
   byId("save").click(); await idle();
   check(byId("field-data").value==="Несохранённые данные" && !byId("save").disabled && !byId("publish").disabled,"Ошибка сохранения сохраняет правки и разблокирует действия");
@@ -96,9 +101,10 @@
   byId("field-title").value="После продолжения";
   byId("field-title").dispatchEvent(new win.Event("input"));
   byId("save").click(); await idle();
-  check(byId("task-state").textContent.includes("№91") && requests.at(-1).path==="/api/tasks/91" && requests.at(-1).method==="PUT","Продолжение восстанавливает ID и сохраняет через PUT");
+  check(byId("task-state").textContent.includes("№91") && requests.at(-1).path==="/api/me/tasks/91" && requests.at(-1).method==="PUT","Продолжение восстанавливает ID и сохраняет через PUT");
   check(byId("draft").value==="" && byId("question-list").children.length===0 && byId("source").hidden && byId("editor-kind").textContent==="Сохранённый черновик","Открытие другой задачи очищает описание и вопросы, восстанавливает тип карточки");
   byId("new-task").click();
+  byId("topic").value="Ритейл";
   byId("draft").value="В магазине много списаний. Хотим их сократить.";
   byId("ask").click(); await idle();
   byId("generate").click(); await idle();

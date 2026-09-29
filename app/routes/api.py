@@ -104,8 +104,9 @@ def list_business_tasks(status: Literal["draft", "published"] | None = None):
 def list_teams():
     with connection() as db:
         teams = []
-        for row in db.execute("SELECT * FROM teams ORDER BY id"):
+        for row in db.execute("SELECT * FROM teams WHERE owner_user_id IS NULL ORDER BY id"):
             team = dict(row)
+            team.pop("owner_user_id", None)
             for key in ("interests", "skills", "technologies"):
                 team[key] = json.loads(team[key])
             teams.append(team)
@@ -125,7 +126,7 @@ def create_proposal(task_id: int, payload: ProposalInput):
         row = task_row(db, task_id)
         if row["status"] != "published":
             fail(409, "CONFLICT", "Отклик доступен после публикации")
-        if db.execute("SELECT 1 FROM teams WHERE id=?", (payload.team_id,)).fetchone() is None:
+        if db.execute("SELECT 1 FROM teams WHERE id=? AND owner_user_id IS NULL", (payload.team_id,)).fetchone() is None:
             fail(404, "NOT_FOUND", "Команда не найдена")
         cur = db.execute("INSERT INTO proposals(task_id,team_id,idea,plan,duration_days,prototype_url,created_at) VALUES(?,?,?,?,?,?,?)",
                          (task_id, payload.team_id, payload.idea, payload.plan, payload.duration_days, str(payload.prototype_url), now()))
@@ -140,6 +141,7 @@ def decide_proposal(proposal_id: int, payload: DecisionInput):
         row = db.execute("SELECT * FROM proposals WHERE id=?", (proposal_id,)).fetchone()
         if row is None:
             fail(404, "NOT_FOUND", "Предложение не найдено")
+        task_row(db, row["task_id"])
         if row["milestone_confirmed"] and payload.status != "selected":
             fail(409, "CONFLICT", "После подтверждения этапа решение изменить нельзя")
         db.execute("UPDATE proposals SET status=? WHERE id=?", (payload.status, proposal_id))
@@ -154,6 +156,7 @@ def confirm_milestone(proposal_id: int):
         row = db.execute("SELECT * FROM proposals WHERE id=?", (proposal_id,)).fetchone()
         if row is None:
             fail(404, "NOT_FOUND", "Предложение не найдено")
+        task_row(db, row["task_id"])
         if row["status"] != "selected":
             fail(409, "CONFLICT", "Сначала выберите команду")
         if not row["milestone_confirmed"]:
