@@ -1,5 +1,27 @@
 # Контракты AI Sana Challenge Hub
 
+## Версия 2: аккаунты и личные задачи
+
+Это дополнение вводит защищённый контур постепенно. Маршруты ниже `/api/auth` и `/api/me` используют аккаунты; прежние `/api/tasks`, `/api/business/tasks` и `/api/teams` временно остаются общим демо только для записей без владельца. Демо-маршруты не могут читать или изменять задачи с владельцем. Переход нового интерфейса на защищённый контур — отдельный этап.
+
+`User`: `id` integer, `email` string, `role` `BUSINESS|TEAM`, `created_at` ISO 8601. Пароль никогда не возвращается. Регистрация принимает `{ "email", "password", "role" }`, вход — `{ "email", "password" }`. Успешные регистрация и вход возвращают `{ "user": User, "csrf_token": string }` и устанавливают серверную cookie сессии. `GET /api/auth/me` возвращает тот же объект для действующей сессии. `POST /api/auth/logout` отзывает сессию и очищает cookie. Пароль: 12–128 символов; email приводится к нижнему регистру и проверяется. Повтор email даёт `409 CONFLICT`, неверные реквизиты — `401 UNAUTHORIZED` без указания, что именно неверно.
+
+Сессия хранится в SQLite по хешу случайного токена, имеет срок действия и отзывается при выходе. Cookie `HttpOnly`, `SameSite=Strict`, `Path=/`; при `APP_ENV=production` также `Secure` (требуется HTTPS). `POST` и `PUT` в `/api/me/*`, а также logout требуют `X-CSRF-Token` из ответа `/api/auth/me` или входа. Отсутствующая сессия даёт `401 UNAUTHORIZED`, отсутствующий/неверный CSRF или роль — `403 FORBIDDEN`. После пяти неудачных попыток для пары IP/email либо тридцати для IP за 15 минут вход возвращает `429 RATE_LIMITED`. Ни cookie, ни пароль не записываются в журналы приложения.
+
+| Метод и путь | Вход | Успешный ответ |
+| --- | --- | --- |
+| `POST /api/auth/register` | `{ "email", "password", "role" }` | HTTP 201, `{ "user", "csrf_token" }` + cookie |
+| `POST /api/auth/login` | `{ "email", "password" }` | `{ "user", "csrf_token" }` + cookie |
+| `GET /api/auth/me` | cookie | `{ "user", "csrf_token" }` |
+| `POST /api/auth/logout` | cookie + CSRF | `{ "status": "ok" }` |
+| `GET /api/me/tasks` | BUSINESS cookie | `{ "tasks": [Task, ...] }` только свои |
+| `POST /api/me/tasks` | BUSINESS cookie + CSRF, `TaskInput` | HTTP 201, `Task` |
+| `GET /api/me/tasks/{id}` | BUSINESS cookie | Свой `Task` |
+| `PUT /api/me/tasks/{id}` | BUSINESS cookie + CSRF, `TaskInput` | Свой обновлённый `Task` |
+| `POST /api/me/tasks/{id}/publish` | BUSINESS cookie + CSRF, `{}` | Свой опубликованный `Task` |
+
+Новая задача содержит `owner_user_id` только в БД; клиент не может назначить или сменить владельца. При обращении к чужому ID возвращается `404 NOT_FOUND`. Рейтинг, подтверждения и публикация следуют прежним правилам, в том числе публикация при низком рейтинге. Синтетические старые записи остаются без владельца и не присваиваются автоматически новым аккаунтам.
+
 Версия 1. Владелец — Али. Базовый адрес `http://127.0.0.1:8000`, фронтенд работает на том же адресе. UTF-8 JSON, заголовок `Content-Type: application/json`; путь `/static/*` для ресурсов. Все бизнес-поля в `card` — строки. Поля отсутствующих сведений — пустая строка, AI ничего не додумывает.
 
 ## Карточка и рейтинг

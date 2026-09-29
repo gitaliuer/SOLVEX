@@ -10,6 +10,8 @@ from fastapi.staticfiles import StaticFiles
 
 from app.db import init_db
 from app.routes.api import router
+from app.routes.auth import router as auth_router
+from app.routes.me import router as me_router
 
 ROOT = Path(__file__).resolve().parent.parent
 @asynccontextmanager
@@ -21,6 +23,8 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="AI Sana Challenge Hub", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=ROOT / "web"), name="static")
 app.include_router(router)
+app.include_router(auth_router)
+app.include_router(me_router)
 
 
 @app.exception_handler(HTTPException)

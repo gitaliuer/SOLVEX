@@ -40,6 +40,20 @@ def now() -> str:
 def init_db() -> None:
     with connection() as db:
         db.executescript("""
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY, email TEXT NOT NULL UNIQUE COLLATE NOCASE,
+                password_hash TEXT NOT NULL, role TEXT NOT NULL CHECK(role IN ('BUSINESS', 'TEAM')),
+                created_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS sessions (
+                token_hash TEXT PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id),
+                created_at TEXT NOT NULL, expires_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS sessions_user_id ON sessions(user_id);
+            CREATE TABLE IF NOT EXISTS auth_attempts (
+                identity_hash TEXT PRIMARY KEY, failures INTEGER NOT NULL,
+                window_started_at TEXT NOT NULL
+            );
             CREATE TABLE IF NOT EXISTS tasks (
                 id INTEGER PRIMARY KEY, topic TEXT NOT NULL, card TEXT NOT NULL,
                 confirmed_fields TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'draft',
@@ -60,6 +74,11 @@ def init_db() -> None:
                 id INTEGER PRIMARY KEY, text TEXT NOT NULL, topic TEXT NOT NULL
             );
         """)
+        # Existing demo rows stay unowned. Never claim them for a new account.
+        task_columns = {row["name"] for row in db.execute("PRAGMA table_info(tasks)")}
+        if "owner_user_id" not in task_columns:
+            db.execute("ALTER TABLE tasks ADD COLUMN owner_user_id INTEGER REFERENCES users(id)")
+        db.execute("CREATE INDEX IF NOT EXISTS tasks_owner_id ON tasks(owner_user_id, id)")
         if db.execute("SELECT COUNT(*) FROM teams").fetchone()[0]:
             return
         examples = [

@@ -16,7 +16,7 @@ def fail(status: int, code: str, message: str):
 
 
 def task_row(db, task_id):
-    row = db.execute("SELECT * FROM tasks WHERE id=?", (task_id,)).fetchone()
+    row = db.execute("SELECT * FROM tasks WHERE id=? AND owner_user_id IS NULL", (task_id,)).fetchone()
     if row is None:
         fail(404, "NOT_FOUND", "Задача не найдена")
     return row
@@ -72,7 +72,7 @@ def list_tasks(topic: str | None = None, level: str | None = None):
     if level and level not in ("draft", "working", "ready", "priority"):
         fail(422, "VALIDATION_ERROR", "Неизвестный уровень готовности")
     with connection() as db:
-        rows = db.execute("SELECT * FROM tasks WHERE status='published'").fetchall()
+        rows = db.execute("SELECT * FROM tasks WHERE status='published' AND owner_user_id IS NULL").fetchall()
         tasks = [task_from_row(db, row) for row in rows]
         tasks = [task for task in tasks if (not topic or task["topic"] == topic) and (not level or task["level"] == level)]
         tasks.sort(key=lambda task: (-task["score"], task["id"]))
@@ -94,9 +94,9 @@ def list_business_tasks(status: Literal["draft", "published"] | None = None):
     """
     with connection() as db:
         if status is None:
-            rows = db.execute("SELECT * FROM tasks ORDER BY id DESC").fetchall()
+            rows = db.execute("SELECT * FROM tasks WHERE owner_user_id IS NULL ORDER BY id DESC").fetchall()
         else:
-            rows = db.execute("SELECT * FROM tasks WHERE status=? ORDER BY id DESC", (status,)).fetchall()
+            rows = db.execute("SELECT * FROM tasks WHERE status=? AND owner_user_id IS NULL ORDER BY id DESC", (status,)).fetchall()
         return {"tasks": [task_from_row(db, row) for row in rows]}
 
 
