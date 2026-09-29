@@ -23,6 +23,7 @@ class Card(InputModel):
 
 
 class TaskInput(InputModel):
+    expected_revision: int | None = Field(default=None, ge=0, strict=True)
     topic: str = Field(min_length=1, max_length=80)
     card: Card
     confirmed_fields: list[str] = Field(default_factory=list, max_length=9)

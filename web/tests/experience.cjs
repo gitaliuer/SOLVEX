@@ -1,4 +1,4 @@
-// Real accounts, database and ownership. Only AI responses are isolated fixtures.
+// Real accounts, database and ownership. AI replies come from the explicitly synthetic agent_server.py fixture.
 // Run against a disposable local DATABASE_PATH; creates synthetic test accounts.
 const {chromium} = require("playwright");
 const assert = require("node:assert/strict");
@@ -65,10 +65,12 @@ const stamp = Date.now();
     await register(page,"BUSINESS","business");
     await page.screenshot({path:path.join(out,"workspace-desktop.png"),fullPage:true});
     await page.locator("#topic").fill("Ритейл");
-    await page.locator("#draft").fill("В магазине остаются продукты и растут списания.");
-    await page.locator("#manual-card").click();
+    await page.locator("#field-context").evaluate(node => node.closest("details").open = true);
+    await page.locator("#field-context").fill("В магазине остаются продукты и растут списания.");
     const title = "Проверка SOLVEX " + stamp;
     await page.locator("#field-title").fill(title);
+    await page.locator("#field-need").evaluate(node => node.closest("details").open = true);
+    await page.locator("#field-users").evaluate(node => node.closest("details").open = true);
     await page.locator("#field-need").fill("Разобраться в причинах списаний");
     await page.locator("#field-users").fill("Менеджеры магазина");
     for (const key of ["context","need","users"]) await page.locator("#confirm-"+key).check();
@@ -81,6 +83,7 @@ const stamp = Date.now();
     await page.locator("#my-task-list button").first().click();
     await page.locator("#field-title").waitFor();
     assert.equal(await page.locator("#field-title").inputValue(),title);
+    await page.locator("#field-context").evaluate(node => node.closest("details").open = true);
     await page.locator("#field-context").fill("Уточнённые сведения о списаниях магазина");
     assert.equal(await page.locator("#confirm-context").isChecked(),false);
     await page.locator("#save").click();
@@ -146,28 +149,42 @@ const stamp = Date.now();
     await page.screenshot({path:path.join(out,"proposals-desktop.png"),fullPage:true});
     console.log("PASS team: profile, published catalog, own proposal, business decision, confirmed milestone");
 
-    // Exercise current AI UI with explicitly synthetic responses, not a live AI claim.
-    await page.route("**/api/me/ai/questions", route=>route.fulfill({json:{questions:[
-      {id:"q1",field:"data",text:"Какие данные доступны?"},
-      {id:"q2",field:"users",text:"Кто будет пользоваться решением?"},
-      {id:"q3",field:"expected_result",text:"Какой результат нужен?"}
-    ]}}));
-    await page.route("**/api/me/ai/card", route=>route.fulfill({json:{card:{
-      title:"Синтетическая AI-карточка",context:"Текст тестового примера",need:"",users:"",data:"",
-      constraints:"",expected_result:"",success_criteria:"",contact:"",interaction_format:""
-    },topic:"Ритейл"}}));
+    // Actual durable message endpoints, with a synthetic model only in agent_server.py.
     await page.locator('nav [data-view="create"]').click();
     await page.locator("#new-task").click();
-    await page.locator("#topic").fill("Ритейл");
-    await page.locator("#draft").fill("В магазине растут списания. Хотим понять причины.");
-    await page.locator("#ask").click();
-    await page.locator("#answer-q3").waitFor();
-    assert.equal(await page.locator("#question-list textarea").count(),3);
-    await page.locator("#answer-q1").fill("Есть отчёты за месяц");
-    await page.locator("#generate").click();
-    await waitText(page,"#editor-title","Проверьте");
-    assert.equal(await page.locator("#field-title").inputValue(),"Синтетическая AI-карточка");
-    console.log("PASS AI UI: three questions, answer, editable card (mocked AI only)");
+    await page.locator("#chat-input").fill("В магазине растут списания. Хотим понять причины.");
+    await page.locator("#send-message").click();
+    await page.waitForFunction(() => document.querySelectorAll(".chat-message.assistant").length === 1);
+    assert.equal(await page.locator("#field-title").inputValue(),"Снизить списания");
+    assert.equal(await page.locator("#score").innerText(),"0");
+    assert.equal(await page.locator(".step-track").count(),0);
+    await page.reload();
+    await page.waitForFunction(() => document.querySelectorAll(".chat-message").length === 2);
+    assert((await page.locator("#chat-messages").innerText()).includes("Какие данные уже есть?"));
+    await page.locator("#chat-input").fill("Есть Excel за месяц.");
+    await page.locator("#send-message").click();
+    await page.waitForFunction(() => document.querySelectorAll(".chat-message.user").length === 2 && document.querySelector("#chat-input").value === "");
+    await page.reload();
+    await page.waitForFunction(() => document.querySelectorAll(".chat-message.assistant").length === 2);
+    await page.screenshot({path:path.join(out,"agent-dialog-desktop.png"),fullPage:true});
+    await page.locator("#chat-input").fill("Проверка ошибки");
+    await page.locator("#send-message").click();
+    await waitText(page,"#agent-error","Синтетическая ошибка");
+    await page.locator("#retry-message").click();
+    await page.waitForFunction(() => !document.querySelector("#retry-message").disabled);
+    assert.equal(await page.locator(".chat-message.user").count(),3);
+    assert.equal(await page.locator(".chat-message.assistant").count(),2);
+    for (const width of [1280,1024,768,680,390,375]) {
+      await page.setViewportSize({width,height:844}); await noOverflow(page);
+      if (width===390) {
+        await page.screenshot({path:path.join(out,"agent-mobile-chat.png"),fullPage:true});
+        await page.locator('.agent-mobile-tabs [data-pane="card"]').click();
+        assert(await page.locator("#preview-score").isVisible());
+        await page.screenshot({path:path.join(out,"agent-mobile-card.png"),fullPage:true});
+        await page.locator('.agent-mobile-tabs [data-pane="chat"]').click();
+      }
+    }
+    console.log("PASS agent: persisted chat, three questions, free reply, card updates, reload, failure/retry without duplicates, responsive panels");
     page.once("dialog", dialog=>dialog.accept());
     await page.locator("#logout").click();
     await page.waitForURL(base+"/");

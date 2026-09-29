@@ -50,8 +50,11 @@ def get_my_task(request: Request, task_id: int):
 def update_my_task(request: Request, task_id: int, payload: TaskInput):
     user = require_business(request, mutate=True)
     with connection() as db:
-        owned_task(db, task_id, user["id"])
-        db.execute("UPDATE tasks SET topic=?,card=?,confirmed_fields=? WHERE id=?",
+        db.execute("BEGIN IMMEDIATE")
+        row = owned_task(db, task_id, user["id"])
+        if payload.expected_revision is not None and payload.expected_revision != row["revision"]:
+            error(409, "CONFLICT", "Карточка изменена в другом окне. Откройте задачу заново; ваш текст остаётся в редакторе.")
+        db.execute("UPDATE tasks SET topic=?,card=?,confirmed_fields=?,revision=revision+1 WHERE id=?",
                    (payload.topic, payload.card.model_dump_json(),
                     json.dumps(payload.confirmed_fields), task_id))
         return task_from_row(db, owned_task(db, task_id, user["id"]))
@@ -61,8 +64,9 @@ def update_my_task(request: Request, task_id: int, payload: TaskInput):
 def publish_my_task(request: Request, task_id: int):
     user = require_business(request, mutate=True)
     with connection() as db:
+        db.execute("BEGIN IMMEDIATE")
         row = owned_task(db, task_id, user["id"])
         if not json.loads(row["card"]).get("title", "").strip():
             error(422, "VALIDATION_ERROR", "Для публикации заполните название задачи")
-        db.execute("UPDATE tasks SET status='published' WHERE id=?", (task_id,))
+        db.execute("UPDATE tasks SET status='published',revision=revision+1 WHERE id=?", (task_id,))
         return task_from_row(db, owned_task(db, task_id, user["id"]))

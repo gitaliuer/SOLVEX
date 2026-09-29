@@ -13,6 +13,7 @@ from app.routes.api import router
 from app.routes.auth import router as auth_router
 from app.routes.me import router as me_router
 from app.routes.community import router as community_router
+from app.routes.agent import router as agent_router
 from app.routes.auth import current_session
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -28,6 +29,7 @@ app.include_router(router)
 app.include_router(auth_router)
 app.include_router(me_router)
 app.include_router(community_router)
+app.include_router(agent_router)
 
 
 @app.exception_handler(HTTPException)

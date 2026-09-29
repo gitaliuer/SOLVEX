@@ -23,33 +23,10 @@ function el(tag, text, className) {
   if (className) node.className = className;
   return node;
 }
-function setStage(number, text) {
-  $("stage-number").textContent = number;
-  $("stage-text").textContent = text;
-  const current = Number.parseInt(number, 10) || 3;
-  document.querySelectorAll(".step-track li").forEach((step, index) => {
-    step.classList.toggle("done", index + 1 < current);
-    if (index + 1 === current) step.setAttribute("aria-current", "step");
-    else step.removeAttribute("aria-current");
-  });
-}
 function message(text, error = false) {
   $("notice").textContent = text;
   $("notice").classList.toggle("error", error);
   $("notice").setAttribute("role", error ? "alert" : "status");
-}
-function markDirty() {
-  if ($("editor").hidden) return;
-  state.dirty = true;
-  $("unsaved").hidden = false;
-  $("unsaved").textContent = state.taskId
-    ? "Есть несохранённые изменения. Рейтинг относится к последней сохранённой версии."
-    : "Есть несохранённые изменения. Рейтинг появится после первого сохранения.";
-}
-function markSaved() {
-  state.dirty = false;
-  $("unsaved").hidden = true;
-  $("unsaved").textContent = "";
 }
 async function api(path, method = "GET", body = null, timeout = 12000) {
   const controller = new AbortController();
@@ -66,7 +43,8 @@ async function api(path, method = "GET", body = null, timeout = 12000) {
         SolvexAuth.open("login");
         throw new Error("Сессия истекла. Войдите снова — несохранённый текст остаётся в этом окне.");
       }
-      throw new Error(data.error?.message || "Ошибка " + response.status);
+      const failure = new Error(data.error?.message || "Ошибка " + response.status);
+      failure.status = response.status; throw failure;
     }
     return data;
   } catch (error) {
@@ -106,7 +84,7 @@ function view(name) {
   state.currentView = name;
   if (name !== "catalog") { catalogRequest++; detailRequest++; }
   history.replaceState(null, "", "#" + name);
-  const labels = {create:"AI-помощник", "my-tasks":"Мои задачи", business:"Отклики команд", catalog:"Каталог задач", "team-profile":"Профиль команды", "my-proposals":"Мои отклики", about:"О платформе"};
+  const labels = {create:"AI Agent", "my-tasks":"Мои задачи", business:"Отклики команд", catalog:"Каталог задач", "team-profile":"Профиль команды", "my-proposals":"Мои отклики", about:"О платформе"};
   $("page-label").textContent = labels[name] || "SOLVEX";
   for (const section of document.querySelectorAll(".view")) section.hidden = section.id !== name;
   const role = name === "about" ? null : name === "catalog" ? "team" : "business";
@@ -133,183 +111,8 @@ function reveal(node) {
 function canReplaceWork() {
   return !(state.dirty || state.sourceDirty || state.profileDirty) || window.confirm("Есть несохранённые изменения. Продолжить и отбросить их?");
 }
-function clearSource() {
-  state.questions = []; state.sourceDirty = false;
-  $("draft").value = "";
-  $("question-list").replaceChildren();
-  $("questions").hidden = true;
-}
-$("new-task").addEventListener("click", () => {
-  if (state.busy || !canReplaceWork()) return;
-  clearSource(); state.taskId = null; state.card = null;
-  $("topic-home").append($("topic-control")); $("topic").value = "";
-  $("editor").hidden = true; $("card-fields").replaceChildren();
-  $("source").hidden = false; $("source").open = true;
-  $("saved-tasks").open = false;
-  resetScore(); markSaved(); setStage("01 / 03", "Описать задачу");
-  message(""); $("draft").focus();
-});
-
-function showScore(task) {
-  $("editor-kind").textContent = task.id
-    ? (task.status === "published" ? "Опубликованная задача" : "Сохранённый черновик")
-    : "Новая карточка от AI";
-  $("editor-title").textContent = task.id ? "Редактирование задачи" : "Проверьте карточку";
-  $("publish").hidden = task.status === "published";
-  $("publication-hint").textContent = task.status === "published"
-    ? "Сохранённые изменения появятся в опубликованной задаче."
-    : "После публикации все поля карточки, включая контакт, будут видны в каталоге. Можно публиковать с любым рейтингом.";
-  $("score").textContent = task.score;
-  $("score-fill").style.width = `${task.score}%`;
-  $("score-fill").parentElement.setAttribute("aria-valuenow", String(task.score));
-  $("level").textContent = `Уровень готовности: ${LEVELS[task.level].toLowerCase()}`;
-  $("score-note").hidden = task.score !== 100;
-  $("score-note").textContent = task.score === 100
-    ? "Заполнены и подтверждены все поля. 100/100 — это оценка заполненности, а не проверка достоверности сведений."
-    : "";
-  $("task-state").textContent = `Статус: ${task.status === "published" ? "опубликовано" : "черновик"} · задача №${task.id}`;
-  const nextField = task.missing_fields[0];
-  $("next-edit").hidden = !nextField;
-  $("next-edit").textContent = nextField ? `Уточнить: ${FIELDS[nextField]}` : "";
-  $("next-edit").onclick = () => focusField(nextField);
-  $("breakdown").replaceChildren(...Object.entries(task.score_breakdown).map(([field, points]) => {
-    const item = el("li", `${FIELDS[field]}: ${points}`);
-    if (points > 0) item.classList.add("earned");
-    return item;
-  }));
-  $("missing").replaceChildren(...task.missing_fields.map(field => {
-    const item = el("li"), button = el("button", `${FIELDS[field]} (+${({context:10,need:10,data:20,expected_result:15,success_criteria:15,constraints:10,users:10,contact:5,interaction_format:5})[field]})`, "missing-link");
-    button.type = "button";
-    button.addEventListener("click", () => {
-      focusField(field);
-    });
-    item.append(button); return item;
-  }));
-  if (!task.missing_fields.length) $("missing").append(el("li", "Все поля рейтинга заполнены и подтверждены.", "hint"));
-}
-function focusField(field) {
-  const input = $(`field-${field}`);
-  if (input) { input.focus({preventScroll:true}); input.scrollIntoView({behavior:"auto", block:"center"}); }
-}
-function resetScore() {
-  $("score").textContent = "—";
-  $("score-fill").style.width = "0%";
-  $("score-fill").parentElement.removeAttribute("aria-valuenow");
-  $("level").textContent = "Готовность появится после сохранения";
-  $("task-state").textContent = "Статус: не сохранено";
-  $("editor-kind").textContent = "Новая карточка от AI";
-  $("editor-title").textContent = "Проверьте карточку";
-  $("score-note").hidden = true; $("score-note").textContent = "";
-  $("breakdown").replaceChildren(); $("missing").replaceChildren();
-  $("next-edit").hidden = true; $("publish").hidden = false;
-  $("publication-hint").textContent = "После публикации все поля карточки, включая контакт, будут видны в каталоге. Можно публиковать с любым рейтингом.";
-}
-$("ask").addEventListener("click", event => action(event.currentTarget, async () => {
-  const draft = $("draft").value.trim(), topic = $("topic").value.trim();
-  if (draft.length < 10 || !topic) throw new Error("Добавьте тему и описание не короче 10 символов");
-  message("AI изучает описание и составляет вопросы...");
-  const data = await api("/api/me/ai/questions", "POST", {draft, topic}, 50000);
-  state.questions = data.questions;
-  const list = $("question-list"); list.replaceChildren();
-  for (const q of state.questions) {
-    const label = el("label", q.text); label.htmlFor = `answer-${q.id}`;
-    const input = el("textarea"); input.id = `answer-${q.id}`; input.maxLength = 2000; input.rows = 2;
-    input.placeholder = "Если сведений нет, оставьте поле пустым";
-    list.append(label, input);
-  }
-  $("questions").hidden = false;
-  setStage("02 / 03", "Ответить на вопросы");
-  message("Вопросы готовы. Ответьте на известные вам факты.");
-  reveal($("questions").querySelector("h2"));
-}));
-
-function renderEditor(card, confirmedFields = [], dirty = true) {
-  const target = $("card-fields"); target.replaceChildren();
-  const groupTargets = {};
-  for (const [title, keys] of FIELD_GROUPS) {
-    const group = el("fieldset", null, "field-group"), grid = el("div", null, "field-grid");
-    group.append(el("legend", title), grid); target.append(group);
-    for (const key of keys) groupTargets[key] = grid;
-  }
-  for (const [key, title] of Object.entries(FIELDS)) {
-    const area = el("div", null, key === "title" ? "title-field" : "");
-    const label = el("label", title); label.htmlFor = `field-${key}`;
-    const input = key === "title" ? el("input") : el("textarea");
-    input.id = `field-${key}`; input.value = card[key] || "";
-    input.maxLength = key === "title" ? 160 : 2000;
-    if (key !== "title") input.rows = 3;
-    input.addEventListener("input", () => {
-      if (key !== "title") {
-        const checkbox = $(`confirm-${key}`);
-        if (checkbox?.checked) checkbox.checked = false;
-      }
-      markDirty();
-    });
-    area.append(label, input);
-    if (key !== "title") {
-      const confirm = el("label", "Подтверждаю эти сведения", "check");
-      const checkbox = el("input"); checkbox.type = "checkbox"; checkbox.id = `confirm-${key}`;
-      checkbox.checked = confirmedFields.includes(key);
-      checkbox.addEventListener("change", markDirty);
-      confirm.prepend(checkbox); area.append(confirm);
-    }
-    groupTargets[key].append(area);
-  }
-  $("editor").hidden = false;
-  $("editor-topic").append($("topic-control"));
-  if (window.matchMedia("(max-width: 680px)").matches) {
-    for (const details of document.querySelectorAll(".score-details")) details.open = false;
-  }
-  $("source").open = false;
-  $("saved-tasks").open = false;
-  if (dirty) markDirty(); else markSaved();
-  reveal($("editor-title"));
-}
-$("generate").addEventListener("click", event => action(event.currentTarget, async () => {
-  if (state.dirty && !window.confirm("Есть несохранённые изменения. Создать новую карточку и отбросить их?")) return;
-  const answers = state.questions.map(q => ({question_id: q.id, answer: $(`answer-${q.id}`).value.trim()}));
-  message("AI готовит редактируемый черновик...");
-  const data = await api("/api/me/ai/card", "POST", {draft: $("draft").value.trim(), topic: $("topic").value.trim(), answers}, 50000);
-  state.card = data.card; state.taskId = null;
-  state.sourceDirty = false;
-  resetScore();
-  renderEditor(data.card);
-  setStage("03 / 03", "Проверить и сохранить");
-  message("Проверьте карточку: AI может ошибаться. Подтвердите только известные вам сведения.");
-}));
-
-function readEditor() {
-  const card = {}, confirmed_fields = [];
-  for (const key of Object.keys(FIELDS)) {
-    card[key] = $(`field-${key}`).value.trim();
-    if (key !== "title" && $(`confirm-${key}`).checked) confirmed_fields.push(key);
-  }
-  return {topic: $("topic").value.trim(), card, confirmed_fields};
-}
-async function saveCard() {
-  const payload = readEditor();
-  if (!payload.topic) throw new Error("Укажите тему задачи");
-  const task = state.taskId
-    ? await api(`/api/me/tasks/${state.taskId}`, "PUT", payload)
-    : await api("/api/me/tasks", "POST", payload);
-  state.taskId = task.id; state.card = task.card; showScore(task); upsertBusinessTask(task);
-  markSaved();
-  setStage("03 / 03", task.status === "published" ? "Дополнить публикацию" : "Сохранено — можно публиковать");
-  message(`Карточка сохранена. Рейтинг ${task.score}/100 (${LEVELS[task.level].toLowerCase()}).`);
-  return task;
-}
-$("save").addEventListener("click", event => action(event.currentTarget, saveCard));
-$("publish").addEventListener("click", event => action(event.currentTarget, async () => {
-  await saveCard();
-  const task = await api(`/api/me/tasks/${state.taskId}/publish`, "POST", {});
-  showScore(task); upsertBusinessTask(task);
-  setStage("Готово", "Опубликовано — можно дополнить");
-  message(`Задача «${task.card.title}» опубликована. Она доступна всем командам, рейтинг ${task.score}/100.`);
-}));
-
 function renderBusinessTasks() {
-  $("saved-count").textContent = state.businessTasks.length ? String(state.businessTasks.length) : "";
-  for (const id of ["business-task-list", "my-task-list"]) {
+  for (const id of ["my-task-list"]) {
     const list = $(id); list.replaceChildren();
     if (!state.businessTasks.length) {
       const empty = el("div", null, "empty-state");
@@ -346,22 +149,6 @@ async function loadBusinessTasks(quiet = false) {
     if (!quiet) message(`Сохранённые задачи загружены: ${data.tasks.length}.`);
   } catch (error) { message(error.message, true); }
 }
-async function openSavedTask(id) {
-  if (!canReplaceWork()) return;
-  message("Открываем сохранённую задачу...");
-  const task = await api(`/api/me/tasks/${id}`);
-  view("create");
-  clearSource(); $("source").hidden = true;
-  state.taskId = task.id; state.card = task.card;
-  $("topic").value = task.topic;
-  renderEditor(task.card, task.confirmed_fields, false);
-  showScore(task);
-  setStage("03 / 03", task.status === "published" ? "Продолжить публикацию" : "Продолжить черновик");
-  message(`Задача №${task.id} открыта.`);
-  reveal($("editor-title"));
-}
-$("refresh-business-tasks").addEventListener("click", event => action(event.currentTarget, () => loadBusinessTasks()));
-
 async function loadTasks(refreshTopics = false) {
   const request = ++catalogRequest;
   detailRequest++;
@@ -520,20 +307,6 @@ async function loadProposals(successMessage = "") {
   } catch (error) { if (request === proposalRequest) message(error.message, true); }
 }
 $("business-task").addEventListener("change", () => loadProposals());
-$("topic").addEventListener("input", markDirty);
-$("source").addEventListener("input", () => { state.sourceDirty = true; });
-$("topic").addEventListener("input", () => { if (!state.card) state.sourceDirty = true; });
-
-$("manual-card").addEventListener("click", () => {
-  if (state.busy || (state.dirty && !canReplaceWork())) return;
-  const card = Object.fromEntries(Object.keys(FIELDS).map(key => [key, ""]));
-  card.context = $("draft").value.trim().slice(0, 2000);
-  state.card = card; state.taskId = null; state.sourceDirty = false;
-  resetScore(); renderEditor(card);
-  $("editor-kind").textContent = "Новая карточка";
-  setStage("03 / 03", "Заполнить и сохранить");
-  message("Заполните известные сведения. AI можно использовать при создании следующей задачи.");
-});
 $("start-new-task").addEventListener("click", () => {
   view("create"); $("new-task").click();
 });
@@ -603,6 +376,7 @@ async function boot() {
     const session = await SolvexAuth.getSession(true);
     if (!session) { location.replace("/?auth=login"); return; }
     applySession(session);
+    if (session.user.role === "BUSINESS") await initAgent();
     document.body.classList.remove("booting");
     $("boot-state").hidden = true;
     view(location.hash.slice(1) || (session.user.role === "BUSINESS" ? "create" : "catalog"));
@@ -635,4 +409,3 @@ window.addEventListener("beforeunload", event => {
   if (state.dirty || state.sourceDirty || state.profileDirty) { event.preventDefault(); event.returnValue = ""; }
 });
 window.addEventListener("hashchange", () => view(location.hash.slice(1)));
-boot();

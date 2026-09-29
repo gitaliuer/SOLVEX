@@ -74,8 +74,28 @@ def init_db() -> None:
                 id INTEGER PRIMARY KEY, text TEXT NOT NULL, topic TEXT NOT NULL
             );
         """)
+        db.executescript("""
+            CREATE TABLE IF NOT EXISTS agent_sessions (
+                owner_user_id INTEGER NOT NULL REFERENCES users(id),
+                request_id TEXT NOT NULL, task_id INTEGER NOT NULL REFERENCES tasks(id),
+                PRIMARY KEY(owner_user_id, request_id)
+            );
+            CREATE TABLE IF NOT EXISTS agent_runs (
+                task_id INTEGER NOT NULL REFERENCES tasks(id), request_id TEXT NOT NULL,
+                status TEXT NOT NULL, attempt TEXT NOT NULL, started_at TEXT NOT NULL,
+                error TEXT NOT NULL DEFAULT '', PRIMARY KEY(task_id, request_id)
+            );
+            CREATE TABLE IF NOT EXISTS agent_messages (
+                id INTEGER PRIMARY KEY, task_id INTEGER NOT NULL REFERENCES tasks(id),
+                request_id TEXT NOT NULL, role TEXT NOT NULL, text TEXT NOT NULL,
+                created_at TEXT NOT NULL, UNIQUE(task_id, request_id, role)
+            );
+            CREATE INDEX IF NOT EXISTS agent_messages_task ON agent_messages(task_id, id);
+        """)
         # Existing demo rows stay unowned. Never claim them for a new account.
         task_columns = {row["name"] for row in db.execute("PRAGMA table_info(tasks)")}
+        if "revision" not in task_columns:
+            db.execute("ALTER TABLE tasks ADD COLUMN revision INTEGER NOT NULL DEFAULT 0")
         if "owner_user_id" not in task_columns:
             db.execute("ALTER TABLE tasks ADD COLUMN owner_user_id INTEGER REFERENCES users(id)")
         db.execute("CREATE INDEX IF NOT EXISTS tasks_owner_id ON tasks(owner_user_id, id)")
@@ -139,7 +159,7 @@ def task_from_row(db: sqlite3.Connection, row: sqlite3.Row) -> dict:
     count = db.execute("SELECT COUNT(*) FROM proposals WHERE task_id=?", (row["id"],)).fetchone()[0]
     return {"id": row["id"], "topic": row["topic"], "card": card, "confirmed_fields": fields,
             "status": row["status"], **readiness(card, fields), "proposals_count": count,
-            "created_at": row["created_at"]}
+            "created_at": row["created_at"], "revision": row["revision"]}
 
 
 def proposal_from_row(row: sqlite3.Row) -> dict:

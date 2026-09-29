@@ -1,130 +1,69 @@
-/* Isolated browser regression tests. Never loaded by the production page. */
+/* Isolated agent regressions; all model and API responses below are fixtures. */
 (async () => {
-  const output = document.getElementById("results");
-  const frame = document.getElementById("preview");
-  const html = await (await fetch("/static/workspace.html", {cache:"no-store"})).text();
-  const app = await (await fetch("/static/app.js", {cache:"no-store"})).text();
-  frame.srcdoc = html.replace('<script defer src="/static/auth.js"></script>', "").replace('<script defer src="/static/app.js"></script>', '');
+  const output = document.getElementById("results"), frame = document.getElementById("preview");
+  const [html, app, agent] = await Promise.all(["workspace.html", "app.js", "agent.js"].map(async file => (await fetch("/static/" + file, {cache:"no-store"})).text()));
+  frame.srcdoc = html.replace(/<script[^>]+src="[^"]+"[^>]*><\/script>/g, "");
   await new Promise(resolve => frame.addEventListener("load", resolve, {once:true}));
-  const win = frame.contentWindow, doc = win.document;
-  // srcdoc has no navigable application URL; routing is covered by experience.cjs.
+  const win = frame.contentWindow, doc = win.document, byId = id => doc.getElementById(id), requests = [];
   win.history.replaceState = () => {};
-  const byId = id => doc.getElementById(id);
-  const requests = [];
-  let failCard = true, failSave = false, saved = null, testRace = false;
-  const card = {title:"Тестовая карточка",context:"В магазине остаются продукты",need:"Снизить списания",users:"Менеджеры",data:"",constraints:"",expected_result:"",success_criteria:"",contact:"",interaction_format:""};
-  win.SolvexAuth = {getSession: async () => ({user:{id:1,email:"test@example.org",role:"BUSINESS"},csrf_token:"isolated-test"}),open:()=>{}};
-  win.fetch = async (path, options = {}) => {
-    const method = options.method || "GET";
-    requests.push({path, method});
-    await new Promise(resolve => setTimeout(resolve, path === "/api/me/tasks/1/proposals" ? 300 : 150));
-    let status = 200, body;
-    if (path === "/api/me/ai/questions") body = {questions:[{id:"q1",field:"users",text:"Кто пользуется решением?"},{id:"q2",field:"data",text:"Какие данные доступны?"},{id:"q3",field:"expected_result",text:"Что ожидаете?"}]};
-    else if (path === "/api/me/ai/card") {
-      if (failCard) {status=503; body={error:{message:"Тестовая ошибка AI"}};}
-      else body={card,topic:"Ритейл"};
-    } else if (path.startsWith("/api/me/tasks") && ["POST","PUT"].includes(method)) {
-      if (failSave) {status=503; body={error:{message:"Тестовая ошибка сохранения"}};}
-      else {
-        const payload=JSON.parse(options.body);
-        const weights={context:10,need:10,users:10,data:20,constraints:10,expected_result:15,success_criteria:15,contact:5,interaction_format:5};
-        const breakdown=Object.fromEntries(Object.entries(weights).map(([k,v])=>[k,payload.confirmed_fields.includes(k)&&payload.card[k]?v:0]));
-        saved={...payload,id:91,status:"draft",score:Object.values(breakdown).reduce((a,b)=>a+b,0),level:"draft",score_breakdown:breakdown,missing_fields:Object.keys(breakdown).filter(k=>!breakdown[k])};
-        body=saved;
+  Object.defineProperty(win, "sessionStorage", {value:{getItem:()=>null,setItem:()=>{},removeItem:()=>{}}});
+  win.SolvexAuth = {getSession:async()=>({user:{id:999999,email:"fixture@example.org",role:"BUSINESS"},csrf_token:"fixture"}),open:()=>{}};
+  const fields = ["title","context","need","users","data","constraints","expected_result","success_criteria","contact","interaction_format"];
+  let failAI = true, failSave = false;
+  const task = {id:91,revision:0,topic:"Без темы",card:Object.fromEntries(fields.map(key=>[key,""])),confirmed_fields:[],status:"draft",score:0,level:"draft",score_breakdown:{},missing_fields:fields.slice(1)};
+  const conversation = {task,messages:[],run:null};
+  win.fetch = async (url, options={}) => {
+    const method = options.method || "GET", payload = options.body ? JSON.parse(options.body) : null;
+    requests.push({url,method});
+    await new Promise(resolve=>setTimeout(resolve,80));
+    let data, status=200;
+    if (url==="/api/me/agent") data=conversation;
+    else if (url==="/api/me/agent/91/messages") {
+      if (!conversation.run || conversation.run.request_id!==payload.request_id) conversation.messages.push({id:conversation.messages.length+1,role:"user",text:payload.text,created_at:new Date().toISOString()});
+      conversation.run={request_id:payload.request_id,status:failAI?"failed":"completed",error:failAI?"Тестовая ошибка AI":""};
+      if (!failAI) {
+        conversation.messages.push({id:conversation.messages.length+1,role:"assistant",text:"Ответ AI.\n1. Какие данные?\n2. Для кого?\n3. Как проверим?",created_at:new Date().toISOString()});
+        task.card.context="Контекст из сообщения"; task.card.title="Тестовая задача"; task.revision++;
       }
-    } else if (path === "/api/me/tasks") body={tasks:testRace?[{id:1,card,topic:"Ритейл",score:30,status:"published",level:"draft"},{id:2,card,topic:"Ритейл",score:30,status:"published",level:"draft"}]:(saved?[saved]:[])};
-    else if (path === "/api/me/tasks/91" && method === "GET") body=saved;
-    else if (path.endsWith("/proposals")) body={proposals:[{id:1,team_id:1,idea:path.includes('/1/')?'СТАРАЯ ЗАДАЧА':'НОВАЯ ЗАДАЧА',plan:'План проверки',duration_days:14,points:0,status:'pending',prototype_url:'https://example.org/test'}]};
-    else if (path === "/api/catalog/tasks") body={tasks:testRace?[{id:1,card,topic:"Ритейл",score:30,level:"draft"},{id:2,card,topic:"Ритейл",score:30,level:"draft"},{id:3,card,topic:"Экология",score:95,level:"priority"}]:[]};
-    else if (path === "/api/catalog/teams") body={teams:[{id:1,name:"Команда 1",points:0,skills:["Аналитика","UX"],technologies:["Python","FastAPI"]}]};
-    else throw new Error(`Unexpected test request: ${method} ${path}`);
-    return new Response(JSON.stringify(body),{status,headers:{"Content-Type":"application/json"}});
+      data=conversation;
+    } else if (url==="/api/me/agent/91") data=conversation;
+    else if (url==="/api/me/tasks/91" && method==="PUT") {
+      if(failSave){status=503;data={error:{message:"Тестовая ошибка сохранения"}};}
+      else {Object.assign(task,payload);task.revision++;
+        task.score_breakdown={context:payload.confirmed_fields.includes("context")&&payload.card.context?10:0};
+        task.score=task.score_breakdown.context;data=task;}
+    } else if(url==="/api/me/tasks") data={tasks:task.revision?[task]:[]};
+    else if(url.startsWith("/api/catalog/tasks")) data={tasks:[]};
+    else throw new Error("Unexpected fixture route: "+url);
+    return new Response(JSON.stringify(data),{status,headers:{"Content-Type":"application/json"}});
   };
-  const script=doc.createElement("script"); script.textContent=app; doc.body.append(script);
+  const script=doc.createElement("script");script.textContent=app+"\n"+agent;doc.body.append(script);
   const lines=[];
-  function check(ok,text) {lines.push(`${ok?"PASS":"FAIL"} ${text}`); output.textContent=lines.join("\n");}
-  async function idle() {await new Promise(resolve=>setTimeout(resolve,400));}
-  await idle();
-  byId("topic").value="Ритейл";
-  byId("draft").value="В магазине много списаний. Хотим их сократить.";
-  byId("ask").click();
-  check(byId("ask").disabled && byId("ask").textContent.includes("Подождите"),"Видимое ожидание AI и блокировка кнопки");
-  await idle();
-  byId("answer-q1").value="Менеджеры магазина";
-  byId("generate").click(); await idle();
-  check(byId("answer-q1").value==="Менеджеры магазина" && !byId("generate").disabled && byId("notice").textContent.includes("Тестовая ошибка"),"Ответы сохранены после ошибки; повтор доступен");
-  failCard=false;
-  byId("generate").click(); await idle();
-  check(byId("stage-number").textContent==="03 / 03" && byId("stage-text").textContent.includes("Проверить"),"Этапы меняются после вопросов и AI-карточки");
-  byId("field-title").value="Ручная правка сохранена";
-  for(const key of ["context","need","users"]) byId(`confirm-${key}`).checked=true;
-  for(const name of ["catalog","business","create"]) {doc.querySelector(`[data-view="${name}"]`).click(); await idle();}
-  check(byId("field-title").value==="Ручная правка сохранена" && byId("confirm-context").checked && byId("confirm-users").checked && byId("unsaved").textContent.includes("Есть несохранённые изменения"),"Правки и подтверждения переживают три переключения ролей");
-  byId("save").click();
-  check(byId("publish").disabled,"Публикация заблокирована во время первого сохранения (защита от дубликата)");
-  await idle();
-  byId("field-title").value="Обновление той же задачи";
-  byId("save").click(); await idle();
-  check(requests.filter(r=>r.path==="/api/me/tasks"&&r.method==="POST").length===1 && requests.some(r=>r.path==="/api/me/tasks/91"&&r.method==="PUT") && saved.card.title==="Обновление той же задачи","Повторное сохранение: один POST, затем PUT текущего ID");
-  failSave=true; byId("field-data").value="Несохранённые данные";
-  byId("save").click(); await idle();
-  check(byId("field-data").value==="Несохранённые данные" && !byId("save").disabled && !byId("publish").disabled,"Ошибка сохранения сохраняет правки и разблокирует действия");
-  check(doc.documentElement.scrollWidth<=doc.documentElement.clientWidth,"Нет горизонтальной прокрутки редактора");
-  failSave=false;
-  byId("field-context").value="Изменённый подтверждённый контекст";
-  byId("field-context").dispatchEvent(new win.Event("input"));
-  const scoreBeforeSave=byId("score").textContent;
-  const dirtyExplainsScore=byId("unsaved").textContent.includes("последней сохранённой версии");
-  const confirmationRemoved=!byId("confirm-context").checked;
-  byId("save").click(); await idle();
-  const scoreAfterRemoval=byId("score").textContent;
-  [...byId("missing").querySelectorAll("button")].find(button=>button.textContent.includes("Контекст")).click();
-  check(doc.activeElement===byId("field-context"),"Подсказка рейтинга переводит к нужному полю");
-  byId("confirm-context").click(); byId("save").click(); await idle();
-  check(confirmationRemoved && scoreBeforeSave==="30" && dirtyExplainsScore && scoreAfterRemoval==="20" && byId("score").textContent==="30","Изменение снимает подтверждение: рейтинг 30 → 20 → 30 после повторного подтверждения");
-  for(const key of ["context","need","users","data","constraints","expected_result","success_criteria","contact","interaction_format"]) {
-    byId(`field-${key}`).value=`Подтверждённое значение ${key}`;
-    byId(`field-${key}`).dispatchEvent(new win.Event("input"));
-    if(!byId(`confirm-${key}`).checked) byId(`confirm-${key}`).click();
-  }
-  byId("save").click(); await idle();
-  check(byId("score").textContent==="100" && byId("score-note").textContent.includes("не проверка достоверности"),"При 100/100 показано ограничение рейтинга");
-  byId("field-title").value="Несохранённая правка";
-  byId("field-title").dispatchEvent(new win.Event("input"));
-  win.confirm=()=>false;
-  byId("business-task-list").querySelector("button").click(); await idle();
-  check(byId("field-title").value==="Несохранённая правка" && !byId("unsaved").hidden,"Отмена переключения сохраняет несохранённый текст");
-  win.confirm=()=>true;
-  byId("business-task-list").querySelector("button").click();
-  check(byId("field-title").disabled && byId("new-task").disabled && byId("save").disabled,"Во время перехода к задаче редактор защищён от параллельных правок");
-  await idle();
-  byId("field-title").value="После продолжения";
-  byId("field-title").dispatchEvent(new win.Event("input"));
-  byId("save").click(); await idle();
-  check(byId("task-state").textContent.includes("№91") && requests.at(-1).path==="/api/me/tasks/91" && requests.at(-1).method==="PUT","Продолжение восстанавливает ID и сохраняет через PUT");
-  check(byId("draft").value==="" && byId("question-list").children.length===0 && byId("source").hidden && byId("editor-kind").textContent==="Сохранённый черновик","Открытие другой задачи очищает описание и вопросы, восстанавливает тип карточки");
-  byId("new-task").click();
-  byId("topic").value="Ритейл";
-  byId("draft").value="В магазине много списаний. Хотим их сократить.";
-  byId("ask").click(); await idle();
-  byId("generate").click(); await idle();
-  check(byId("score").textContent==="—" && byId("task-state").textContent==="Статус: не сохранено","Новая AI-карточка сбрасывает старые рейтинг и статус (до ответа сервера — без балла)");
-  testRace=true;
-  doc.querySelector('[data-view="business"]').click();
-  await new Promise(resolve=>setTimeout(resolve,200));
-  byId("business-task").value="2";
-  byId("business-task").dispatchEvent(new win.Event("change"));
-  await new Promise(resolve=>setTimeout(resolve,500));
-  check(byId("proposal-list").textContent.includes("НОВАЯ ЗАДАЧА") && !byId("proposal-list").textContent.includes("СТАРАЯ ЗАДАЧА") && byId("proposal-list").textContent.includes("Аналитика") && byId("proposal-list").textContent.includes("FastAPI"),"Поздний ответ не смешивает отклики; навыки и технологии видны");
-  doc.querySelector('[data-view="create"]').click();
-  await idle();
-  byId("saved-tasks").open=true;
-  for (const width of [390,375]) {
-    frame.style.width=width+"px";
-    await idle();
-    const buttons=[...byId("business-task-list").querySelectorAll("button")];
-    check(doc.documentElement.scrollWidth<=doc.documentElement.clientWidth && buttons.length>0 && buttons.every(button=>button.getBoundingClientRect().right<=doc.documentElement.clientWidth),`Список сохранённых задач и кнопки не выходят за ${width} px`);
-  }
+  function check(value,label){lines.push((value?"PASS ":"FAIL ")+label);output.textContent=lines.join("\n");}
+  const delay=()=>new Promise(resolve=>setTimeout(resolve,350));
+  function edit(id,text){byId(id).value=text;byId(id).dispatchEvent(new win.Event("input"));}
+  await delay();
+  check(!doc.querySelector(".step-track")&&byId("chat-input"),"Основной сценарий — чат без старого мастера");
+  edit("chat-input","В магазине много списаний.");byId("send-message").click();
+  check(byId("send-message").disabled&&!byId("agent-activity").hidden,"Видимое ожидание и защита от двойной отправки");
+  await delay();
+  check(conversation.messages.length===1&&!byId("agent-error").hidden&&doc.querySelectorAll(".assistant").length===0,"Ошибка сохраняет сообщение и не подменяется ответом AI");
+  failAI=false;byId("retry-message").click();await delay();
+  check(conversation.messages.length===2&&doc.querySelectorAll(".chat-message.user").length===1,"Повтор не дублирует сообщение");
+  check(byId("field-context").value==="Контекст из сообщения"&&!byId("confirm-context").checked&&byId("score").textContent==="0","AI обновляет карточку без подтверждений и баллов");
+  byId("confirm-context").click();byId("save").click();await delay();
+  check(byId("score").textContent==="10","Подтверждение и сохранение пересчитывают рейтинг");
+  edit("field-context","Ручная правка");
+  check(!byId("confirm-context").checked&&!byId("unsaved").hidden,"Изменение факта снимает подтверждение");
+  failSave=true;byId("save").click();await delay();
+  check(byId("field-context").value==="Ручная правка"&&!byId("save").disabled,"Ошибка сохранения сохраняет текст и возвращает управление");
+  doc.querySelector('[data-view="catalog"]').click();await delay();doc.querySelector('[data-view="create"]').click();await delay();
+  check(byId("field-context").value==="Ручная правка","Переходы по разделам сохраняют ручной ввод");
+  win.confirm=()=>false;byId("new-task").click();
+  check(byId("field-context").value==="Ручная правка","Отмена новой задачи защищает несохранённые изменения");
+  failSave=false;byId("save").click();await delay();
+  check(requests.filter(r=>r.url==="/api/me/agent"&&r.method==="POST").length===1&&task.id===91,"Повторные сохранения используют прежнюю задачу");
+  for(const width of [390,375]){frame.style.width=width+"px";await delay();check(doc.documentElement.scrollWidth<=doc.documentElement.clientWidth,"Панели без горизонтальной прокрутки: "+width);}
   frame.style.width="100%";
-  output.textContent += "\nЗавершено. Это тестовые ответы, а не реальный AI-прогон.";
-})().catch(error=>{document.getElementById("results").textContent += `\nERROR ${error.message}`;});
+  output.textContent+="\nЗавершено. Только синтетические ответы.";
+})().catch(error=>{document.getElementById("results").textContent+="\nERROR "+error.message;});
