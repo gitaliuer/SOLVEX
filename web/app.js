@@ -77,7 +77,7 @@ async function action(button, fn) {
 function view(name, options = {}) {
   if (!state.user) return;
   if (name.startsWith("projects/")) { options.projectId = Number(name.split("/")[1]); name = "projects"; }
-  const business = ["create", "my-tasks", "business", "matches"], team = ["my-proposals"];
+  const business = ["create", "my-tasks", "business", "matches", "research"], team = ["my-proposals"];
   if ((business.includes(name) && state.user.role !== "BUSINESS") ||
       (team.includes(name) && state.user.role !== "TEAM") || !document.getElementById(name)?.classList.contains("view")) {
     name = state.user.role === "BUSINESS" ? "create" : "catalog";
@@ -85,7 +85,7 @@ function view(name, options = {}) {
   state.currentView = name;
   if (name !== "catalog") { catalogRequest++; detailRequest++; }
   history.replaceState(null, "", "#" + name);
-  const labels = {projects:SolvexI18n.text("Проекты"), create:"AI Agent", "my-tasks":SolvexI18n.text("Мои задачи"), business:SolvexI18n.text("Отклики команд"), matches:SolvexI18n.text("Подбор команд"), catalog:SolvexI18n.text("Каталог задач"), "team-profile":SolvexI18n.text("Мой профиль"), "my-proposals":SolvexI18n.text("Мои отклики"), about:SolvexI18n.text("О платформе")};
+  const labels = {research:"Research / Evidence", projects:SolvexI18n.text("Проекты"), create:"AI Agent", "my-tasks":SolvexI18n.text("Мои задачи"), business:SolvexI18n.text("Отклики команд"), matches:SolvexI18n.text("Подбор команд"), catalog:SolvexI18n.text("Каталог задач"), "team-profile":SolvexI18n.text("Мой профиль"), "my-proposals":SolvexI18n.text("Мои отклики"), about:SolvexI18n.text("О платформе")};
   SolvexI18n.set($("page-label"),labels[name] || "SOLVEX");
   for (const section of document.querySelectorAll(".view")) section.hidden = section.id !== name;
   const role = name === "about" ? null : name === "catalog" ? "team" : "business";
@@ -98,6 +98,7 @@ function view(name, options = {}) {
   if (name === "catalog") loadTasks(true);
   if (name === "business") loadBusiness(options.taskId);
   if (name === "matches") loadMatching(options.taskId);
+  if (name === "research") loadResearch(options.taskId);
   if (name === "team-profile") loadProfile();
   if (name === "projects") loadProjects(options.projectId);
   if (name === "my-proposals") loadMyProposals();

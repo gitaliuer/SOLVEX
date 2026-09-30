@@ -6,7 +6,7 @@
 
 Дополнение: [профили компаний и команд, фото, RU/EN и AI-разбор откликов](PROFILES_REVIEW.md).
 
-Дополнение: [проекты и дорожная карта](PROJECTS.md). Будущий слой [Research / Evidence](RESEARCH_EVIDENCE.md) пока только запланирован.
+Дополнение: [проекты и дорожная карта](PROJECTS.md). Первый рабочий слой [Research / Evidence API](RESEARCH_API.md); полное видение и следующие итерации — [RESEARCH_EVIDENCE](RESEARCH_EVIDENCE.md).
 
 ## Версия 2: аккаунты и личные задачи
 

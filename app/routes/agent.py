@@ -14,6 +14,7 @@ from app.ai.service import AIServiceError
 from app.db import connection, now, task_from_row
 from app.routes.auth import error, require_business
 from app.routes.me import owned_task
+from app.routes.research import agent_evidence
 from app.schemas import Card, InputModel
 
 router = APIRouter(prefix='/api/me/agent')
@@ -101,7 +102,9 @@ async def send(request: Request, task_id: int, payload: MessageInput):
                    (task_id, request_id, attempt, now()))
         initial = snapshot(db, task_id, user['id'])
     try:
-        localized_task = {**initial['task'], 'locale': payload.locale}
+        with connection() as db:
+            evidence = agent_evidence(db, initial['task'])
+        localized_task = {**initial['task'], 'locale': payload.locale, 'research_context': evidence}
         answer = await asyncio.wait_for(respond(localized_task, initial['messages']), timeout=45)
         with connection() as db:
             db.execute('BEGIN IMMEDIATE')

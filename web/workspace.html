@@ -13,8 +13,10 @@
   <script defer src="/static/profiles.js"></script>
   <script defer src="/static/reviews.js"></script>
   <script defer src="/static/projects.js"></script>
+  <script defer src="/static/research.js"></script>
   <script defer src="/static/agent.js"></script>
   <link rel="stylesheet" href="/static/matching.css">
+  <link rel="stylesheet" href="/static/research.css">
   <link rel="stylesheet" href="/static/agent.css"><link rel="stylesheet" href="/static/profiles.css"><link rel="stylesheet" href="/static/projects.css">
 </head>
 <body class="workspace booting" data-workspace="true">
@@ -25,6 +27,7 @@
     <nav aria-label="Разделы кабинета">
       <button type="button" data-view="create" data-access="BUSINESS"><span aria-hidden="true">✳</span>AI Agent</button>
       <button type="button" data-view="my-tasks" data-access="BUSINESS"><span aria-hidden="true">▤</span>Мои задачи</button>
+      <button type="button" data-view="research" data-access="BUSINESS"><span aria-hidden="true">◉</span>Исследования</button>
       <button type="button" data-view="matches" data-access="BUSINESS"><span aria-hidden="true">◎</span>Подбор команд</button>
       <button type="button" data-view="business" data-access="BUSINESS"><span aria-hidden="true">↙</span>Отклики команд</button>
       <button type="button" data-view="projects"><span aria-hidden="true">▦</span>Проекты</button>
@@ -41,6 +44,7 @@
     <p id="notice" role="status" aria-live="polite"></p>
     <section id="create" class="view" data-pane="chat">
       <div class="agent-heading"><div><span class="eyebrow">Из мысли — в действие</span><h1>AI Agent<span class="agent-beta">SOLVEX</span></h1><p>Разберём вашу задачу. Вместе.</p></div><button type="button" id="new-task" class="secondary">＋ Новая задача</button></div>
+      <button type="button" id="agent-research" class="research-entry"><span aria-hidden="true">◉</span><span>Research / Evidence</span><small>Источники и новые вопросы по задаче</small><span aria-hidden="true">↗</span></button>
       <div class="agent-mobile-tabs" aria-label="Панели агента"><button type="button" data-pane="chat" aria-pressed="true">Диалог</button><button type="button" data-pane="card" aria-pressed="false">Карточка задачи</button></div>
       <div class="agent-layout">
         <aside class="agent-context" aria-label="Контекст и готовность"><span class="eyebrow">Текущая задача</span><h2 id="context-title">Новая возможность</h2><span id="task-state" class="tag">Черновик</span><div class="readiness-ring" id="readiness-ring"><div><strong id="score">0</strong><small>из 100</small></div></div><p id="level">Готовность задачи</p><p class="agent-caption">По подтверждённым фактам</p><div class="context-divider"></div><div class="context-label"><span>Содержание</span><span id="filled-count">0 / 9</span></div><ul id="agent-checklist"></ul><p class="context-help">Дополняйте в диалоге.<br>Проверяйте в карточке.</p></aside>
@@ -52,6 +56,14 @@
         </section>
         <aside id="editor" class="agent-preview" aria-labelledby="editor-title"><header class="preview-heading"><div><span class="eyebrow">Собираем по ходу диалога</span><h2 id="editor-title">Карточка задачи</h2><span id="preview-score">Готовность 0/100</span></div><span class="preview-icon" aria-hidden="true">▤</span></header><div class="preview-scroll"><label for="topic" class="topic-label">Направление</label><input id="topic" maxlength="80" placeholder="Например, ритейл"><div id="card-fields"></div></div><div class="preview-actions"><p id="unsaved" role="status" hidden>Есть несохранённые изменения</p><button type="button" id="save" class="secondary">Сохранить изменения</button><button type="button" id="publish" class="primary">Опубликовать задачу ↗</button><button type="button" id="find-teams" class="primary" hidden>Найти команду →</button><p id="publication-hint">Публикация откроет все поля карточки, включая контакт. Можно с любым рейтингом.</p></div></aside>
       </div>
+    </section>
+    <section id="research" class="view" hidden aria-labelledby="research-title">
+      <div class="intro research-intro"><div><span class="eyebrow">RESEARCH / EVIDENCE</span><h1 id="research-title">Больше оснований. <br>Точнее следующий шаг.</h1><p>Исследования, отраслевой опыт и решения — в контексте вашей задачи.</p></div><span class="research-symbol" aria-hidden="true">◉</span></div>
+      <div class="research-taskbar"><label for="research-task">Задача для исследования<select id="research-task"></select></label><button type="button" id="research-chat" class="secondary">← К задаче и чату</button><button type="button" id="research-reload" class="text-button">Обновить результаты</button></div>
+      <p id="research-status" role="status" aria-live="polite"></p>
+      <form id="research-form" class="research-search" hidden><label for="research-query">Что искать в открытых источниках?</label><textarea id="research-query" rows="2" minlength="10" maxlength="500" required aria-describedby="research-privacy" placeholder="Например, причины расхождений складских остатков и успешные способы их снижения"></textarea><div class="research-search-bottom"><p id="research-privacy">В поиск отправится этот запрос. Уберите названия компании, контакты и закрытые данные. Поиск расходует лимит API.</p><div class="actions"><button type="submit" id="research-run" class="primary">Найти источники ↗</button><button type="button" id="research-fresh" class="text-button" hidden>Искать заново</button></div></div></form>
+      <div id="research-output" hidden><div id="research-summary" class="research-summary"></div><div id="research-filters" class="research-filters" role="group" aria-label="Категории источников"></div><div class="research-layout"><div id="research-insights"></div><aside class="research-business"><span class="evidence-type business-type">BUSINESS DATA</span><h2>Что сообщил бизнес</h2><p>Исходные сведения остаются отдельно от внешних выводов.</p><div id="research-business-data"></div></aside></div></div>
+      <section id="evidence-board" class="evidence-board" hidden><div class="evidence-board-heading"><div><span class="eyebrow">EVIDENCE BOARD</span><h2>Сохранённые основания</h2><p>Агент учитывает актуальные выводы для уточняющих вопросов. Карточка и рейтинг не меняются.</p></div><span id="evidence-count" class="evidence-count">0</span></div><div id="evidence-list"></div></section>
     </section>
     <section id="matches" class="view" hidden aria-labelledby="matching-title">
       <div class="intro matching-intro"><div><span class="eyebrow">Следующий шаг вашей задачи</span><h1 id="matching-title">Найдите свою <span>команду.</span></h1><p>Сравните опыт, сохраните интересные команды и изучите их отклики.</p></div><span class="matching-symbol" aria-hidden="true">◎</span></div>

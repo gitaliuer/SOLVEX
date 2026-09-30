@@ -75,6 +75,20 @@ def init_db() -> None:
             );
         """)
         db.executescript("""
+            CREATE TABLE IF NOT EXISTS research_runs (
+                id TEXT PRIMARY KEY, task_id INTEGER NOT NULL REFERENCES tasks(id),
+                user_id INTEGER NOT NULL REFERENCES users(id), locale TEXT NOT NULL,
+                query TEXT NOT NULL, digest TEXT NOT NULL, status TEXT NOT NULL,
+                content TEXT, error TEXT NOT NULL DEFAULT '', started_at TEXT NOT NULL,
+                completed_at TEXT
+            );
+            CREATE INDEX IF NOT EXISTS research_task ON research_runs(task_id,locale,started_at);
+            CREATE INDEX IF NOT EXISTS research_user ON research_runs(user_id,started_at);
+            CREATE TABLE IF NOT EXISTS saved_evidence (
+                id INTEGER PRIMARY KEY, task_id INTEGER NOT NULL REFERENCES tasks(id),
+                run_id TEXT NOT NULL REFERENCES research_runs(id), insight_index INTEGER NOT NULL,
+                created_at TEXT NOT NULL, UNIQUE(run_id,insight_index)
+            );
             CREATE TABLE IF NOT EXISTS projects (
                 id INTEGER PRIMARY KEY, proposal_id INTEGER NOT NULL UNIQUE REFERENCES proposals(id),
                 snapshot TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'active',
