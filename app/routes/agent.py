@@ -16,6 +16,7 @@ from app.routes.auth import error, require_business
 from app.routes.me import owned_task
 from app.routes.research import agent_evidence
 from app.schemas import Card, InputModel
+from app import usage
 
 router = APIRouter(prefix='/api/me/agent')
 
@@ -33,6 +34,7 @@ class MessageInput(StartInput):
 def expire_runs(db, task_id):
     for row in db.execute("SELECT * FROM agent_runs WHERE task_id=? AND status='pending'", (task_id,)).fetchall():
         if (datetime.now(timezone.utc) - datetime.fromisoformat(row['started_at'])).total_seconds() > 90:
+            usage.finish(db, row['attempt'], False)
             db.execute("UPDATE agent_runs SET status='failed',error=? WHERE task_id=? AND request_id=?",
                        ('Запрос прерван. Сообщение сохранено; можно повторить.', task_id, row['request_id']))
 
@@ -92,6 +94,7 @@ async def send(request: Request, task_id: int, payload: MessageInput):
             error(409, 'CONFLICT', 'Агент уже отвечает на сообщение. Дождитесь ответа.')
         if task_row['revision'] != payload.revision:
             error(409, 'CONFLICT', 'Карточка изменилась. Обновите задачу перед отправкой.')
+        usage.reserve(db, user['id'], 'chat', attempt)
         if not old:
             count = db.execute("SELECT COUNT(*) FROM agent_messages WHERE task_id=? AND role='user'", (task_id,)).fetchone()[0]
             if count >= 100:
@@ -114,6 +117,8 @@ async def send(request: Request, task_id: int, payload: MessageInput):
                 return snapshot(db, task_id, user['id'])
             if current['revision'] != payload.revision:
                 raise AIServiceError('CONFLICT', 'Карточка изменилась во время ответа. Ваши правки сохранены. Повторите запрос для новой версии.')
+            if not usage.finish(db, attempt, True):
+                raise AIServiceError('AI_TIMEOUT', 'Запрос устарел. Повторите сообщение.')
             card = json.loads(current['card'])
             updates = answer['updates'] if current['status'] == 'draft' else {}
             changed = {key for key, value in updates.items() if card.get(key) != value}
@@ -129,6 +134,7 @@ async def send(request: Request, task_id: int, payload: MessageInput):
         if isinstance(exc, (TimeoutError, asyncio.TimeoutError)):
             reason = 'AI не ответил вовремя. Сообщение сохранено; попробуйте ещё раз.'
         with connection() as db:
+            usage.finish(db, attempt, False)
             db.execute("UPDATE agent_runs SET status='failed',error=? WHERE task_id=? AND request_id=? AND attempt=? AND status='pending'",
                        (reason, task_id, request_id, attempt))
     with connection() as db:

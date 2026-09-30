@@ -1,5 +1,15 @@
 "use strict";
 Object.assign(window.SolvexTranslations, {
+  "Проверка источников":"Source review", "Метаданные Crossref":"Crossref metadata", "Дата публикации: {0}":"Published: {0}",
+  "Дата публикации не проверена":"Publication date not verified", "Метаданные пока недоступны":"Metadata currently unavailable",
+  "Сверено по DOI":"Matched by DOI", "Журнальная статья":"Journal article", "Препринт / размещённый материал":"Preprint / posted content",
+  "Тип документа: {0}":"Document type: {0}", "Рецензирование и отзыв статьи не проверены.":"Peer review and retraction status have not been verified.",
+  "Дата просмотра: {0}":"Accessed: {0}", "Сопоставление исследований":"Comparing findings", "Возможное противоречие":"Potential contradiction",
+  "Разные условия исследования":"Different study conditions", "Что проверить дальше":"What to check next",
+  "AI сопоставил найденные фрагменты. Это повод проверить оригиналы, а не окончательный научный вывод.":"AI compared the retrieved passages. Check the original sources; this is not a definitive scientific conclusion.",
+  "Явных расхождений не выделено. Это не означает, что все исследования согласуются.":"No clear differences were identified. This does not mean all studies agree.",
+  "В этом отчёте проверка источников ещё не выполнялась. Запустите новый поиск.":"This report predates source review. Run a new search to include it.",
+  "Проверены метаданные: {0} из {1}":"Metadata matched: {0} of {1}", "DOI подтверждает запись об источнике, но не достоверность его выводов.":"A DOI identifies a source record; it does not prove its findings are reliable.",
   "Исследования":"Research", "Источники и новые вопросы по задаче":"Sources and better questions for your challenge",
   "Больше оснований.":"More evidence.", "Точнее следующий шаг.":"A clearer next step.",
   "Исследования, отраслевой опыт и решения — в контексте вашей задачи.":"Research, industry experience and solutions — connected to your challenge.",
@@ -93,7 +103,30 @@ async function runResearch(refresh=false){
 }
 function researchSource(source){
   const box=el('div',null,'research-source'),link=el('a',source.title);link.href=source.url;link.target='_blank';link.rel='noopener noreferrer';
-  box.append(link,el('small',source.domain),el('small',rt('Дата публикации не указана · просмотр {0}',new Date(source.accessed_at).toLocaleDateString(SolvexI18n.locale))));return box;
+  box.append(link,el('small',source.domain));
+  const meta=source.metadata;
+  box.append(el('small',source.published_at?rt('Дата публикации: {0}',source.published_at):rt('Дата публикации не проверена')));
+  if(meta?.status==='matched'){
+    box.append(el('span',rt('Сверено по DOI'),'metadata-badge'));
+    const types={'journal-article':'Журнальная статья','posted-content':'Препринт / размещённый материал'};
+    box.append(el('small',types[meta.document_type]?rt(types[meta.document_type]):rt('Тип документа: {0}',meta.document_type)));
+    if(meta.venue||meta.publisher)box.append(el('small',[meta.venue,meta.publisher].filter(Boolean).join(' · ')));
+    const metadataLink=el('a',rt('Метаданные Crossref'));metadataLink.href=meta.url;metadataLink.target='_blank';metadataLink.rel='noopener noreferrer';box.append(metadataLink);
+  }else if(meta?.status==='lookup_failed')box.append(el('small',rt('Метаданные пока недоступны')));
+  box.append(el('small',rt('Рецензирование и отзыв статьи не проверены.')),el('small',rt('Дата просмотра: {0}',new Date(source.accessed_at).toLocaleDateString(SolvexI18n.locale))));return box;
+}
+function researchQuality(report){
+  const section=el('section',null,'research-quality');section.append(el('h3',rt('Проверка источников')));
+  if(!report.quality_version){section.append(el('p',rt('В этом отчёте проверка источников ещё не выполнялась. Запустите новый поиск.')));return section;}
+  section.append(el('p',rt('Проверены метаданные: {0} из {1}',report.sources.filter(s=>s.metadata?.status==='matched').length,report.sources.length)),el('p',rt('DOI подтверждает запись об источнике, но не достоверность его выводов.'),'hint'));
+  const fold=el('details');fold.append(el('summary',rt('Сопоставление исследований')));fold.open=Boolean(report.comparisons?.some(item=>item.relationship==='conflict'));
+  fold.append(el('p',rt('AI сопоставил найденные фрагменты. Это повод проверить оригиналы, а не окончательный научный вывод.'),'hint'));
+  if(!report.comparisons?.length)fold.append(el('p',rt('Явных расхождений не выделено. Это не означает, что все исследования согласуются.')));
+  for(const item of report.comparisons||[]){
+    const card=el('article',null,'research-comparison');card.append(el('h4',rt(item.relationship==='conflict'?'Возможное противоречие':'Разные условия исследования')),el('p',item.summary));
+    const pair=el('div',null,'comparison-pair');
+    for(const id of [item.left_id,item.right_id]){const passage=report.passages.find(p=>p.id===id);if(!passage)continue;const side=el('div');side.append(el('p',passage.text));for(const sid of passage.source_ids){const source=report.sources.find(s=>s.id===sid);if(source)side.append(researchSource(source));}pair.append(side);}card.append(pair,el('p',item.caveat,'hint'),el('h4',rt('Что проверить дальше')),el('p',item.next_check));fold.append(card);
+  }section.append(fold);return section;
 }
 function insightCard(insight,report,index,saved=false){
   const card=el('article',null,'evidence-card');card.dataset.insightIndex=index;
@@ -133,6 +166,7 @@ function renderResearch(){
   const list=$("research-insights");list.replaceChildren();
   if(!report){list.append(el('h2',rt('Пока нет исследования')),el('p',rt('Проверьте запрос выше и запустите поиск. Новые выводы появятся здесь.')));}
   else{
+    list.append(researchQuality(report));
     let shown=0;report.insights.forEach((insight,index)=>{if(research.filter==='all'||research.filter===insight.category){list.append(insightCard(insight,report,index));shown++;}});
     if(!shown)list.append(el('p',rt(!report.sources.length?'Поиск не дал материалов с проверяемыми ссылками. Измените запрос и попробуйте ещё раз.':!report.insights.length?'Источники найдены, но полезная связь с задачей не установлена.':'В этой категории пока нет выводов.'),'research-empty'));
     if(report.sources.length){const all=el('details',null,'research-all-sources');all.append(el('summary',rt('Все найденные источники')),el('p',rt('Категории определены AI; наличие ссылки не гарантирует качество исследования.'),'hint'));report.sources.forEach(s=>all.append(researchSource(s)));list.append(all);}

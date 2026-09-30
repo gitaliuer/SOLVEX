@@ -50,6 +50,19 @@ def init_db() -> None:
                 created_at TEXT NOT NULL, expires_at TEXT NOT NULL
             );
             CREATE INDEX IF NOT EXISTS sessions_user_id ON sessions(user_id);
+            CREATE TABLE IF NOT EXISTS subscriptions (
+                user_id INTEGER PRIMARY KEY REFERENCES users(id),
+                plan TEXT NOT NULL CHECK(plan='plus'), starts_at TEXT NOT NULL, expires_at TEXT NOT NULL,
+                payment_reference TEXT NOT NULL UNIQUE
+            );
+            CREATE TABLE IF NOT EXISTS ai_usage (
+                id TEXT PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id),
+                kind TEXT NOT NULL CHECK(kind IN ('chat','research')),
+                status TEXT NOT NULL CHECK(status IN ('reserved','completed','released')),
+                period_key TEXT NOT NULL, created_at TEXT NOT NULL, expires_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS usage_account_period ON ai_usage(user_id,period_key,kind,status);
+            CREATE INDEX IF NOT EXISTS usage_attempts ON ai_usage(user_id,created_at);
             CREATE TABLE IF NOT EXISTS auth_attempts (
                 identity_hash TEXT PRIMARY KEY, failures INTEGER NOT NULL,
                 window_started_at TEXT NOT NULL

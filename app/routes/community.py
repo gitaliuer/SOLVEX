@@ -179,10 +179,10 @@ def confirm(request: Request, proposal_id: int):
 @router.post("/me/ai/questions")
 async def private_questions(request: Request, payload: DraftInput):
     require_business(request, mutate=True)
-    return await questions(payload)
+    return await questions(request, payload)
 
 
 @router.post("/me/ai/card")
 async def private_card(request: Request, payload: CardGenerationInput):
     require_business(request, mutate=True)
-    return await card(payload)
+    return await card(request, payload)

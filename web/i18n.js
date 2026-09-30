@@ -78,6 +78,8 @@
       NOT_FOUND:'The requested item was not found.', CONFLICT:'The data changed or this action is already in progress. Refresh and try again.',
       PROFILE_REQUIRED:'Complete your team profile first.', UNAUTHORIZED:'Sign in to continue.', RATE_LIMITED:'Too many attempts. Please try again later.',
       AI_NOT_CONFIGURED:'AI is not configured on the server.', AI_UNAVAILABLE:'AI is temporarily unavailable. Your data is saved; please retry.',
+      QUOTA_EXCEEDED:'Your daily AI allowance is used up. Saved work remains available. Limits reset at midnight Kazakhstan time (UTC+05:00).',
+      BILLING_NOT_CONFIGURED:'Payments are not connected yet. No subscription was activated or payment taken.',
       AI_TIMEOUT:'AI did not respond in time. Please retry.', AI_INVALID_OUTPUT:'AI returned an invalid result. Please retry.'}[error?.code] || 'The request could not be completed. Please try again.';
   }
   window.SolvexI18n = {text, combine, set, attribute, staticText, option, value, failure, get locale() { return locale; }, change};

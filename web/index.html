@@ -7,7 +7,11 @@
   <title>SOLVEX — от проблемы к решению</title>
   <link rel="icon" href="/static/assets/mark.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/static/product.css">
+  <link rel="stylesheet" href="/static/landing-product.css">
+  <link rel="stylesheet" href="/static/billing.css">
   <script defer src="/static/translations.js"></script>
+  <script defer src="/static/plans.js"></script>
+  <script defer src="/static/landing-product.js"></script>
   <script defer src="/static/i18n.js"></script>
   <script defer src="/static/auth.js"></script>
   <script defer src="/static/landing.js"></script>
@@ -42,6 +46,19 @@
       <div class="process-step"><span class="step-number">02</span><div><h3>Соберите ясную задачу</h3><p>AI спросит. Вы уточните и подтвердите.</p></div></div>
       <div class="process-step"><span class="step-number">03</span><div><h3>Дайте идее команду</h3><p>Получите отклики. Выберите свой подход.</p></div></div>
     </section>
+    <section class="agent-story" aria-labelledby="agent-story-title">
+      <div class="story-heading"><div><span class="eyebrow">Внутри SOLVEX</span><h2 id="agent-story-title">Не нужно знать ответ.<br><span>Начните с вопроса.</span></h2></div><p>Агент помогает разобраться в проблеме, проверить основания и подготовить задачу для команды.</p></div>
+      <div class="story-workspace">
+        <div class="story-rail" role="group" aria-label="Этапы примера"><button type="button" data-story="0" aria-pressed="true"><span>01</span>Диалог</button><button type="button" data-story="1" aria-pressed="false"><span>02</span>Основания</button><button type="button" data-story="2" aria-pressed="false"><span>03</span>Следующий шаг</button><small>Иллюстрация сценария</small></div>
+        <div class="story-conversation"><div class="story-agent"><img src="/static/assets/mark.svg" width="25" height="25" alt=""><strong>SOLVEX Agent</strong><span>AI</span></div><div id="story-dialogue" aria-live="polite"></div><button class="story-next" type="button" id="story-next">Следующий шаг →</button></div>
+        <aside class="story-result"><span class="eyebrow">Собираем по ходу разговора</span><h3 id="story-result-title"></h3><div id="story-result-body"></div><div class="story-ownership"><span aria-hidden="true">✓</span><p>Вы подтверждаете данные и выбираете команду.</p></div></aside>
+      </div>
+    </section>
+    <section class="landing-outcomes" aria-label="Возможности для бизнеса и команд">
+      <article class="outcome-business"><div class="outcome-art" aria-hidden="true"><span class="art-path"></span><span class="art-node">?</span><img src="/static/assets/mark.svg" width="44" height="44" alt=""><span class="art-node">↗</span></div><span class="eyebrow">Для бизнеса</span><h2>От «что не так»<br>к понятной задаче.</h2><p>Добавьте фото, обсудите детали с агентом и получите отклики. Контекст останется в одном месте.</p><button type="button" class="button secondary" data-auth="register" data-role="BUSINESS">Обсудить свою задачу ↗</button></article>
+      <article class="outcome-team"><div class="outcome-art team-art" aria-hidden="true"><span class="art-stack stack-back"></span><span class="art-stack stack-front"><i></i><i></i><b>↗</b></span><span class="art-team">✳</span></div><span class="eyebrow">Для команд</span><h2>Ваш опыт.<br>Реальная потребность.</h2><p>Найдите подходящую задачу, предложите подход и начните разговор с бизнесом прямо на платформе.</p><button type="button" class="button secondary" data-auth="register" data-role="TEAM">Найти свою задачу ↗</button></article>
+    </section>
+    <section class="landing-pricing" id="pricing" aria-labelledby="pricing-title"><div><span class="eyebrow">Один агент. То же качество.</span><h2 id="pricing-title">Начните бесплатно.<br>Продолжайте, когда нужно больше.</h2><p>Лимит определяет количество запросов. Модель и качество ответов одинаковы.</p></div><div id="landing-plans" class="landing-plans"><p>Загружаем тарифы…</p></div></section>
   </main>
   <footer class="landing-footer wrap"><span>SOLVEX <span class="footer-divider">/</span> От проблемы к решению</span><span>Технологии помогают. Решения принимаете вы.</span></footer>
 </body>

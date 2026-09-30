@@ -62,7 +62,8 @@ class ChallengeFlowTest(unittest.TestCase):
             with patch.dict(os.environ, {"DATABASE_PATH": str(Path(directory) / "test.db")}):
                 with patch("app.ai.service.config", return_value=""):
                     with TestClient(app) as client:
-                        response = client.post("/api/ai/questions", json={"draft": "Хотим сократить списания", "topic": "Ритейл"})
+                        session = client.post('/api/auth/register', json={'email':'ai@example.org','password':'synthetic-password','role':'BUSINESS'}).json()
+                        response = client.post("/api/ai/questions", headers={'X-CSRF-Token':session['csrf_token']}, json={"draft": "Хотим сократить списания", "topic": "Ритейл"})
                         self.assertEqual(response.status_code, 503)
                         self.assertEqual(response.json()["error"]["code"], "AI_NOT_CONFIGURED")
 
@@ -82,7 +83,8 @@ class ChallengeFlowTest(unittest.TestCase):
                 with patch("app.ai.service.config", return_value="test-only-key"):
                     with patch("openai.AsyncOpenAI", return_value=context_mock):
                         with TestClient(app) as client:
-                            response = client.post("/api/ai/questions", json={"draft": "Хотим сократить списания", "topic": "Ритейл"})
+                            session = client.post('/api/auth/register', json={'email':'ai@example.org','password':'synthetic-password','role':'BUSINESS'}).json()
+                            response = client.post("/api/ai/questions", headers={'X-CSRF-Token':session['csrf_token']}, json={"draft": "Хотим сократить списания", "topic": "Ритейл"})
         self.assertEqual(response.status_code, 503)
         self.assertEqual(response.json()["error"]["code"], "AI_UNAVAILABLE")
 

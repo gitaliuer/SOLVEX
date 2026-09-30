@@ -6,6 +6,7 @@
   <meta name="theme-color" content="#070a12"><link rel="icon" href="/static/assets/mark.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/static/style.css"><link rel="stylesheet" href="/static/product.css"><link rel="stylesheet" href="/static/workspace.css">
   <script defer src="/static/translations.js"></script>
+  <script defer src="/static/plans.js"></script>
   <script defer src="/static/i18n.js"></script>
   <script defer src="/static/auth.js"></script>
   <script defer src="/static/app.js"></script>
@@ -15,11 +16,14 @@
   <script defer src="/static/projects.js"></script>
   <script defer src="/static/research.js"></script>
   <script defer src="/static/collaboration.js"></script>
+  <script defer src="/static/billing.js"></script>
   <script defer src="/static/agent.js"></script>
   <link rel="stylesheet" href="/static/matching.css">
   <link rel="stylesheet" href="/static/research.css">
+  <link rel="stylesheet" href="/static/research-quality.css">
   <link rel="stylesheet" href="/static/agent.css"><link rel="stylesheet" href="/static/profiles.css"><link rel="stylesheet" href="/static/projects.css">
   <link rel="stylesheet" href="/static/collaboration.css">
+  <link rel="stylesheet" href="/static/billing.css">
 </head>
 <body class="workspace booting" data-workspace="true">
   <a class="skip-link" href="#main">К содержимому</a>
@@ -36,6 +40,7 @@
       <button type="button" data-view="messages"><span aria-hidden="true">▱</span>Сообщения <b id="messages-badge" class="unread-count"></b></button>
       <button type="button" data-view="catalog"><span aria-hidden="true">◈</span>Каталог задач</button>
       <button type="button" data-view="team-profile"><span aria-hidden="true">◎</span>Мой профиль</button>
+      <button type="button" data-view="billing" data-access="BUSINESS"><span aria-hidden="true">◇</span>Тариф и лимиты</button>
       <button type="button" data-view="my-proposals" data-access="TEAM"><span aria-hidden="true">↗</span>Мои отклики</button>
       <button type="button" data-view="about" class="sidebar-about"><span aria-hidden="true">ⓘ</span>О платформе</button>
     </nav>
@@ -59,6 +64,11 @@
         </section>
         <aside id="editor" class="agent-preview" aria-labelledby="editor-title"><header class="preview-heading"><div><span class="eyebrow">Собираем по ходу диалога</span><h2 id="editor-title">Карточка задачи</h2><span id="preview-score">Готовность 0/100</span></div><span class="preview-icon" aria-hidden="true">▤</span></header><div class="preview-scroll"><label for="topic" class="topic-label">Направление</label><input id="topic" maxlength="80" placeholder="Например, ритейл"><div id="card-fields"></div></div><div class="preview-actions"><p id="unsaved" role="status" hidden>Есть несохранённые изменения</p><button type="button" id="save" class="secondary">Сохранить изменения</button><button type="button" id="publish" class="primary">Опубликовать задачу ↗</button><button type="button" id="find-teams" class="primary" hidden>Найти команду →</button><p id="publication-hint">Публикация откроет все поля карточки, включая контакт. Можно с любым рейтингом.</p></div></aside>
       </div>
+    </section>
+    <section id="billing" class="view" hidden aria-labelledby="billing-title">
+      <div class="intro"><div><span class="eyebrow">SOLVEX / PLUS</span><h1 id="billing-title">Больше пространства для идей.</h1><p>Тот же агент. Больше сообщений и исследований.</p></div></div>
+      <p id="billing-status" role="status"></p><div id="billing-usage" class="billing-usage"></div><div id="billing-plans" class="billing-plans"></div>
+      <section class="billing-explainer"><h2>Как считаются запросы</h2><p>Лимит общий для всех задач. Новое сообщение агенту, отдельный AI-разбор отклика или генерация карточки расходуют один AI-запрос. Один новый поиск Research — одно исследование.</p><p>Сбой не расходует лимит. Чтение сохранённых ответов и повторное открытие результатов бесплатны. Личные сообщения людям, фото и работа с карточкой не ограничены тарифом AI.</p><p>Сброс каждый день в 00:00 по времени Казахстана (UTC+05:00). Неиспользованные запросы не переносятся.</p></section>
     </section>
     <section id="messages" class="view" hidden aria-labelledby="messages-title">
       <div class="intro"><div><span class="eyebrow">От знакомства к совместной работе</span><h1 id="messages-title">Сообщения</h1><p>Обсуждайте задачу напрямую. Здесь отвечают люди — бизнес и команды.</p></div><button id="messages-refresh" type="button" class="secondary">Обновить</button></div>

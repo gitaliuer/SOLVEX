@@ -44,14 +44,16 @@ async function api(path, method = "GET", body = null, timeout = 12000) {
         throw new Error(SolvexI18n.text("Сессия истекла. Войдите снова — несохранённый текст остаётся в этом окне."));
       }
       const failure = new Error(SolvexI18n.failure(data.error));
-      failure.status = response.status; throw failure;
+      failure.status = response.status; failure.code = data.error?.code;
+      if(data.error?.subscription)window.dispatchEvent(new CustomEvent('solvex:quota',{detail:data.error.subscription}));
+      throw failure;
     }
     return data;
   } catch (error) {
     if (error.name === "AbortError") throw new Error(SolvexI18n.text("Время ожидания истекло. Попробуйте ещё раз."));
     if (error instanceof TypeError) throw new Error(SolvexI18n.text("Сервер недоступен. Проверьте запуск приложения и попробуйте ещё раз."));
     throw error;
-  } finally { clearTimeout(timer); }
+  } finally { clearTimeout(timer); if(method!=='GET'&&(/\/agent\/\d+\/messages$|\/research$|\/review$|\/ai\//.test(path)))window.dispatchEvent(new Event('solvex:usage')); }
 }
 async function action(button, fn) {
   if (button.disabled) return;
@@ -101,6 +103,7 @@ function view(name, options = {}) {
   if (name === "business") loadBusiness(options.taskId);
   if (name === "matches") loadMatching(options.taskId);
   if (name === "research") loadResearch(options.taskId);
+  if (name === "billing") { SolvexI18n.set($("page-label"),SolvexI18n.text("Тариф и лимиты")); loadUsage(); }
   if (name === "team-profile") loadProfile();
   if (name === "projects") loadProjects(options.projectId);
   if (name === "messages") { SolvexI18n.set($("page-label"),SolvexI18n.text("Сообщения")); loadConversations(options.conversationId); }
@@ -387,6 +390,7 @@ async function boot() {
     const session = await SolvexAuth.getSession(true);
     if (!session) { location.replace("/?auth=login"); return; }
     applySession(session);
+    loadUsage();
     if (session.user.role === "BUSINESS") await initAgent();
     document.body.classList.remove("booting");
     $("boot-state").hidden = true;

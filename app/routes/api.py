@@ -2,7 +2,9 @@ import json
 from sqlite3 import IntegrityError
 from typing import Literal
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
+from app.routes.auth import require_business
+from app import usage
 
 from app.db import connection, now, proposal_from_row, task_from_row
 from app.schemas import CardGenerationInput, DecisionInput, DraftInput, ProposalInput, TaskInput
@@ -23,18 +25,20 @@ def task_row(db, task_id):
 
 
 @router.post("/ai/questions")
-async def questions(payload: DraftInput):
+async def questions(request: Request, payload: DraftInput):
+    user = require_business(request, mutate=True)
     try:
-        return {"questions": await generate_questions(payload.draft, payload.topic)}
+        return {"questions": await usage.metered(user['id'], lambda: generate_questions(payload.draft, payload.topic))}
     except AIServiceError as exc:
         raise HTTPException(504 if exc.code == "AI_TIMEOUT" else 502 if exc.code == "AI_INVALID_OUTPUT" else 503,
                             {"code": exc.code, "message": exc.message}) from exc
 
 
 @router.post("/ai/card")
-async def card(payload: CardGenerationInput):
+async def card(request: Request, payload: CardGenerationInput):
+    user = require_business(request, mutate=True)
     try:
-        return {"card": await build_card(payload.draft, payload.topic, [a.model_dump() for a in payload.answers]), "topic": payload.topic}
+        return {"card": await usage.metered(user['id'], lambda: build_card(payload.draft, payload.topic, [a.model_dump() for a in payload.answers])), "topic": payload.topic}
     except AIServiceError as exc:
         raise HTTPException(504 if exc.code == "AI_TIMEOUT" else 502 if exc.code == "AI_INVALID_OUTPUT" else 503,
                             {"code": exc.code, "message": exc.message}) from exc

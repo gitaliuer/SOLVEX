@@ -15,6 +15,7 @@ from app.routes.auth import require_business, error
 from app.routes.community import owned_proposal
 from app.routes.me import owned_task
 from app.schemas import InputModel
+from app import usage
 
 router = APIRouter(prefix='/api/me/proposals')
 
@@ -53,6 +54,9 @@ async def run_review(request: Request, proposal_id: int, payload: ReviewInput):
             error(409, 'CONFLICT', 'Разбор уже выполняется. Подождите и обновите отклики.')
         if row and row['content'] and row['digest'] == digest:
             return {'review': json.loads(row['content']), 'stale': False}
+        if row and row['run_id']:
+            usage.finish(db, row['run_id'], False)
+        usage.reserve(db, user['id'], 'chat', run_id)
         db.execute('''INSERT INTO proposal_reviews VALUES(?,?,?,NULL,?,?) ON CONFLICT(proposal_id,locale)
                       DO UPDATE SET started_at=excluded.started_at,run_id=excluded.run_id''',
                    (proposal_id, payload.locale, digest, now(), run_id))
@@ -65,6 +69,8 @@ async def run_review(request: Request, proposal_id: int, payload: ReviewInput):
             current = db.execute('SELECT run_id FROM proposal_reviews WHERE proposal_id=? AND locale=?', (proposal_id, payload.locale)).fetchone()
             if current['run_id'] != run_id or current_digest != digest:
                 error(409, 'CONFLICT', 'Задача изменилась во время разбора. Повторите для актуальной карточки.')
+            if not usage.finish(db, run_id, True):
+                error(504, 'AI_TIMEOUT', 'Разбор устарел. Повторите запрос.')
             db.execute("UPDATE proposal_reviews SET content=?,digest=?,run_id='' WHERE proposal_id=? AND locale=?",
                        (json.dumps(result, ensure_ascii=False), digest, proposal_id, payload.locale))
         return {'review': result, 'stale': False}
@@ -78,4 +84,5 @@ async def run_review(request: Request, proposal_id: int, payload: ReviewInput):
         error(503, 'AI_UNAVAILABLE', 'AI временно недоступен. Повторите запрос.')
     finally:
         with connection() as db:
+            usage.finish(db, run_id, False)
             db.execute("UPDATE proposal_reviews SET run_id='' WHERE proposal_id=? AND locale=? AND run_id=?", (proposal_id, payload.locale, run_id))

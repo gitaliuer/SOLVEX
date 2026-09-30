@@ -577,8 +577,10 @@ class TimeoutRouteTests(unittest.TestCase):
                 with patch.object(service, "config", side_effect=lambda name: "test-key" if name == "OPENAI_API_KEY" else "test-model"):
                     with patch("openai.AsyncOpenAI", return_value=context_mock):
                         with TestClient(app) as client:
+                            session = client.post('/api/auth/register', json={'email':'timeout@example.org','password':'synthetic-password','role':'BUSINESS'}).json()
                             response = client.post(
                                 "/api/ai/questions",
+                                headers={'X-CSRF-Token':session['csrf_token']},
                                 json={"draft": "Хотим сократить списания", "topic": "Ритейл"},
                             )
         self.assertEqual(client_mock.chat.completions.create.await_count, 2)
@@ -592,8 +594,10 @@ class TimeoutRouteTests(unittest.TestCase):
             with patch.dict(os.environ, {"DATABASE_PATH": str(Path(directory) / "test.db")}):
                 with patch.object(service, "_model_json", AsyncMock(return_value=raw)):
                     with TestClient(app) as client:
+                        session = client.post('/api/auth/register', json={'email':'invalid@example.org','password':'synthetic-password','role':'BUSINESS'}).json()
                         response = client.post(
                             "/api/ai/card",
+                            headers={'X-CSRF-Token':session['csrf_token']},
                             json={
                                 "draft": "В магазине есть списания.",
                                 "topic": "Ритейл",

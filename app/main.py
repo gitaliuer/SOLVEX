@@ -21,6 +21,7 @@ from app.routes.reviews import router as reviews_router
 from app.routes.projects import router as projects_router
 from app.routes.research import router as research_router
 from app.routes.collaboration import router as collaboration_router
+from app.routes.subscriptions import router as subscriptions_router
 from app.routes.auth import current_session
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -43,6 +44,7 @@ app.include_router(reviews_router)
 app.include_router(projects_router)
 app.include_router(research_router)
 app.include_router(collaboration_router)
+app.include_router(subscriptions_router)
 
 
 @app.exception_handler(HTTPException)

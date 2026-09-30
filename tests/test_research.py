@@ -63,7 +63,8 @@ class ResearchTest(unittest.TestCase):
         self.assertEqual(self.call('owner','get',self.path+'/research?locale=en')['report']['id'],first['report']['id'])
         self.assertEqual(self.clients['owner'].get(self.path+'/research').headers['cache-control'],'no-store')
         self.call('owner','post',self.path+'/research',{**self.payload,'expected_revision':99},409)
-        self.run_search(refresh=True);self.assertEqual(self.mock.await_count,3)
+        self.call('owner','post',self.path+'/research',{**self.payload,'refresh':True},429)
+        self.assertEqual(self.mock.await_count,2)
 
     def test_board_is_private_idempotent_and_does_not_change_card(self):
         report=self.run_search()['report'];payload={'run_id':report['id'],'insight_index':0}
@@ -166,13 +167,27 @@ class ResearchGroundingTest(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(AIServiceError):extract(response)
 
     async def test_analysis_rejects_fabricated_evidence_and_business_ids(self):
-        grounded=result();raw={'insights':grounded['insights']}
+        grounded=result();raw={'insights':grounded['insights'],'comparisons':[]}
         with patch('app.ai.research.search_web',new_callable=AsyncMock,return_value={k:grounded[k] for k in ['sources','passages']}),patch('app.ai.research._model_json',new_callable=AsyncMock) as model:
             model.return_value=copy.deepcopy(raw)
             await analyze('query',{'card:need':{'text':'Goal only','confirmed':False}},'en')
             model.return_value['insights'][0]['business_ids']=['card:need']
             with self.assertRaises(AIServiceError):await analyze('query',{'card:need':{'text':'Goal only','confirmed':False}},'en')
             model.return_value=copy.deepcopy(raw);model.return_value['insights'][0]['evidence_ids']=['invented']
+            with self.assertRaises(AIServiceError):await analyze('query',{},'en')
+
+    async def test_comparisons_require_two_independent_cited_passages(self):
+        grounded=result();grounded['sources'].append({**grounded['sources'][0],'id':'s2','url':'https://example.net/other'})
+        grounded['passages'].append({'id':'e2','text':'Synthetic opposing observation under different conditions.','source_ids':['s2']})
+        pair={'left_id':'e1','right_id':'e2','relationship':'different_context','summary':'Different contexts have different observations.','caveat':'Different populations prevent a direct comparison.','next_check':'Check whether the study setting matches the business.'}
+        raw={'insights':grounded['insights'],'comparisons':[pair]}
+        with patch('app.ai.research.search_web',new_callable=AsyncMock,return_value={k:grounded[k] for k in ['sources','passages']}),patch('app.ai.research._model_json',new_callable=AsyncMock,return_value=raw):
+            self.assertEqual((await analyze('query',{},'en'))['comparisons'][0]['relationship'],'different_context')
+            pair['right_id']='invented'
+            with self.assertRaises(AIServiceError):await analyze('query',{},'en')
+            pair['right_id']='e1'
+            with self.assertRaises(AIServiceError):await analyze('query',{},'en')
+            pair['right_id']='e2';grounded['passages'][1]['source_ids']=['s1','s2']
             with self.assertRaises(AIServiceError):await analyze('query',{},'en')
 
 

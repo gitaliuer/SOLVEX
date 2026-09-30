@@ -256,6 +256,9 @@ async function sendMessage(retry = false) {
     if (data.run?.status === "pending") pollAgent();
   } catch (error) {
     if (generation !== agent.generation) return;
+    if(error.code==='QUOTA_EXCEEDED'){
+      clearTimeout(agent.polling);agent.generation++;
+    }
     $("agent-error").hidden = false; SolvexI18n.set($("agent-error-text"),error.message);
     $("retry-message").hidden = true;
     // Keep the text and UUID so a lost response cannot send the same message twice.

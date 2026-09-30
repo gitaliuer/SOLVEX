@@ -15,6 +15,7 @@ from app.db import connection, now, task_from_row
 from app.routes.auth import error, require_business
 from app.routes.me import owned_task
 from app.schemas import InputModel
+from app import usage
 
 router = APIRouter(prefix='/api/me/tasks')
 
@@ -49,6 +50,8 @@ def business_data(db, task):
 
 def expire(db, user_id):
     cutoff = (datetime.now(timezone.utc)-timedelta(seconds=150)).isoformat()
+    for row in db.execute("SELECT id FROM research_runs WHERE user_id=? AND status='pending' AND started_at<?", (user_id, cutoff)):
+        usage.finish(db, row['id'], False)
     db.execute("UPDATE research_runs SET status='failed',error=? WHERE user_id=? AND status='pending' AND started_at<?",
                ('Поиск прерван. Повторите запрос.', user_id, cutoff))
 
@@ -125,19 +128,26 @@ async def run_research(request: Request, task_id: int, payload: ResearchInput):
         if db.execute('SELECT COUNT(*) FROM research_runs WHERE user_id=? AND started_at>?', (user['id'], hour)).fetchone()[0] >= 6:
             error(429, 'RATE_LIMITED', 'Доступно до 6 поисков в час. Сохранённые результаты остаются доступны.')
         business = business_data(db, task)
+        usage.reserve(db, user['id'], 'research', run_id)
         db.execute("INSERT INTO research_runs(id,task_id,user_id,locale,query,digest,status,started_at) VALUES(?,?,?,?,?,?,'pending',?)",
                    (run_id, task_id, user['id'], payload.locale, payload.query, digest, now()))
     try:
         result = await asyncio.wait_for(analyze(payload.query, business, payload.locale), timeout=100)
         with connection() as db:
-            db.execute("UPDATE research_runs SET status='completed',content=?,completed_at=? WHERE id=? AND status='pending'",
+            db.execute('BEGIN IMMEDIATE')
+            if not usage.finish(db, run_id, True):
+                raise AIServiceError('AI_TIMEOUT', 'Поиск устарел. Повторите запрос.')
+            cursor = db.execute("UPDATE research_runs SET status='completed',content=?,completed_at=? WHERE id=? AND status='pending'",
                        (json.dumps(result, ensure_ascii=False), now(), run_id))
+            if not cursor.rowcount:
+                raise AIServiceError('AI_TIMEOUT', 'Поиск прерван. Повторите запрос.')
     except Exception as exc:
         code = exc.code if isinstance(exc, AIServiceError) else 'AI_UNAVAILABLE'
         reason = exc.message if isinstance(exc, AIServiceError) else 'Исследование не завершилось. Повторите поиск.'
         if isinstance(exc, asyncio.TimeoutError):
             code, reason = 'AI_TIMEOUT', 'Поиск не завершился вовремя. Повторите запрос.'
         with connection() as db:
+            usage.finish(db, run_id, False)
             db.execute("UPDATE research_runs SET status='failed',error=? WHERE id=? AND status='pending'", (reason, run_id))
         error({'AI_TIMEOUT': 504, 'AI_INVALID_OUTPUT': 502}.get(code, 503), code, reason)
     with connection() as db:

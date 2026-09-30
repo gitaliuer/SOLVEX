@@ -38,9 +38,13 @@ async def research_fixture(query, business, locale):
     if 'synthetic empty' in query.lower():
         return {'sources': [], 'passages': [], 'insights': [], 'business_data': business}
     from app.db import now
-    return {'sources': [{'id':'s1','url':'https://example.org/synthetic-paper','title':'Synthetic source — UI test only',
-                         'domain':'example.org','accessed_at':now(),'published_at':None}],
-            'passages':[{'id':'e1','text':'Synthetic research summary for testing, not scientific evidence.','source_ids':['s1']}],
+    return {'quality_version':1,'sources': [{'id':'s1','url':'https://example.org/synthetic-paper','title':'Synthetic source — UI test only',
+                         'domain':'example.org','accessed_at':now(),'published_at':'2021',
+                         'metadata':{'status':'matched','provider':'Crossref','url':'https://api.crossref.org/works/10.5555/test','document_type':'journal-article','venue':'Synthetic venue — not a real journal','publisher':'Test publisher'}},
+                         {'id':'s2','url':'https://example.net/synthetic-case','title':'Synthetic comparison — UI test only','domain':'example.net','accessed_at':now(),'published_at':None,'metadata':{'status':'unavailable'}}],
+            'passages':[{'id':'e1','text':'Synthetic research summary for testing, not scientific evidence.','source_ids':['s1']},
+                        {'id':'e2','text':'Synthetic comparison uses a different counting method.','source_ids':['s2']}],
+            'comparisons':[{'left_id':'e1','right_id':'e2','relationship':'different_context','summary':'Synthetic studies use different methods.','caveat':'These are UI fixtures, not real findings.','next_check':'Compare the counting methods before drawing conclusions.'}],
             'insights':[{'factor':'Counting coverage' if locale=='en' else 'Охват инвентаризации',
                          'category':'industry','evidence_ids':['e1'],'business_ids':['card:data'] if 'card:data' in business else [],
                          'why':'Synthetic connection to this challenge','hypothesis':'Synthetic hypothesis requiring verification',
