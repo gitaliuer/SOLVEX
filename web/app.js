@@ -13,7 +13,7 @@ const FIELD_GROUPS = [
   [SolvexI18n.text("Условия и связь"), ["constraints", "contact", "interaction_format"]]
 ];
 const $ = id => document.getElementById(id);
-const state = {user: null, csrf: '', currentView: 'create', profileDirty: false, questions: [], card: null, taskId: null, tasks: [], businessTasks: [], teams: [], topics: [], dirty: false, sourceDirty: false, busy: false};
+const state = {user: null, csrf: '', currentView: 'create', profileDirty: false, projectDirty: false, questions: [], card: null, taskId: null, tasks: [], businessTasks: [], teams: [], topics: [], dirty: false, sourceDirty: false, busy: false};
 
 let catalogRequest = 0, detailRequest = 0, businessRequest = 0;
 
@@ -76,6 +76,7 @@ async function action(button, fn) {
 }
 function view(name, options = {}) {
   if (!state.user) return;
+  if (name.startsWith("projects/")) { options.projectId = Number(name.split("/")[1]); name = "projects"; }
   const business = ["create", "my-tasks", "business", "matches"], team = ["my-proposals"];
   if ((business.includes(name) && state.user.role !== "BUSINESS") ||
       (team.includes(name) && state.user.role !== "TEAM") || !document.getElementById(name)?.classList.contains("view")) {
@@ -84,7 +85,7 @@ function view(name, options = {}) {
   state.currentView = name;
   if (name !== "catalog") { catalogRequest++; detailRequest++; }
   history.replaceState(null, "", "#" + name);
-  const labels = {create:"AI Agent", "my-tasks":SolvexI18n.text("Мои задачи"), business:SolvexI18n.text("Отклики команд"), matches:SolvexI18n.text("Подбор команд"), catalog:SolvexI18n.text("Каталог задач"), "team-profile":SolvexI18n.text("Мой профиль"), "my-proposals":SolvexI18n.text("Мои отклики"), about:SolvexI18n.text("О платформе")};
+  const labels = {projects:SolvexI18n.text("Проекты"), create:"AI Agent", "my-tasks":SolvexI18n.text("Мои задачи"), business:SolvexI18n.text("Отклики команд"), matches:SolvexI18n.text("Подбор команд"), catalog:SolvexI18n.text("Каталог задач"), "team-profile":SolvexI18n.text("Мой профиль"), "my-proposals":SolvexI18n.text("Мои отклики"), about:SolvexI18n.text("О платформе")};
   SolvexI18n.set($("page-label"),labels[name] || "SOLVEX");
   for (const section of document.querySelectorAll(".view")) section.hidden = section.id !== name;
   const role = name === "about" ? null : name === "catalog" ? "team" : "business";
@@ -98,6 +99,7 @@ function view(name, options = {}) {
   if (name === "business") loadBusiness(options.taskId);
   if (name === "matches") loadMatching(options.taskId);
   if (name === "team-profile") loadProfile();
+  if (name === "projects") loadProjects(options.projectId);
   if (name === "my-proposals") loadMyProposals();
 }
 for (const button of document.querySelectorAll("nav button")) button.addEventListener("click", () => view(button.dataset.view));
@@ -110,7 +112,7 @@ function reveal(node) {
   node.scrollIntoView({block:"start", behavior:"auto"});
 }
 function canReplaceWork() {
-  return !(state.dirty || state.sourceDirty || state.profileDirty) || window.confirm(SolvexI18n.text("Есть несохранённые изменения. Продолжить и отбросить их?"));
+  return !(state.dirty || state.sourceDirty || state.profileDirty || state.projectDirty) || window.confirm(SolvexI18n.text("Есть несохранённые изменения. Продолжить и отбросить их?"));
 }
 function renderBusinessTasks() {
   for (const id of ["my-task-list"]) {
@@ -304,7 +306,7 @@ async function loadProposals(successMessage = "") {
         el("p", p.idea), el("p", SolvexI18n.text("План: {0}",p.plan)), el("p", SolvexI18n.text("Срок: {0} дн. · Баллы команды: {1} · За этот этап: {2}",p.duration_days,team?.points ?? 0,p.points), "proposal-meta"));
       const link = el("a", SolvexI18n.text("Открыть прототип")); link.href = p.prototype_url; link.target = "_blank"; link.rel = "noopener noreferrer"; article.append(link);
       for (const [status, title] of [["selected",SolvexI18n.text("Выбрать")],["rejected",SolvexI18n.text("Отклонить")]]) {
-        if (p.milestone_confirmed && status === "rejected") continue;
+        if ((p.milestone_confirmed || p.project_id) && status === "rejected") continue;
         const button = el("button", title, status === "selected" ? "primary" : "secondary");
         button.disabled = p.status === status;
         button.addEventListener("click", () => action(button, async () => {
@@ -312,7 +314,8 @@ async function loadProposals(successMessage = "") {
           await loadProposals(SolvexI18n.text("Решение сохранено вручную. Остальные отклики не изменены."));
         })); actions.append(button);
       }
-      if (p.status === "selected") {
+      if (p.status === "selected") actions.append(projectProposalButton(p));
+      if (p.status === "selected" && !p.project_id) {
         const button = el("button", p.milestone_confirmed ? SolvexI18n.text("Этап подтверждён") : SolvexI18n.text("Подтвердить этап +10"), "secondary");
         button.disabled = p.milestone_confirmed;
         button.addEventListener("click", () => action(button, async () => {
@@ -351,6 +354,7 @@ async function loadMyProposals() {
       box.append(el("span", proposal.status === "selected" ? SolvexI18n.text("Команда выбрана") : proposal.status === "rejected" ? SolvexI18n.text("Отклик отклонён") : SolvexI18n.text("Ожидает решения"), "proposal-status"),
         el("h2", proposal.task_title), el("p", proposal.idea),
         el("p", proposal.milestone_confirmed ? SolvexI18n.text("Этап подтверждён · +10 баллов") : SolvexI18n.combine(SolvexI18n.combine(SolvexI18n.text("Срок: "),proposal.duration_days),SolvexI18n.text(" дн.")), "hint"));
+      if (proposal.project_id) box.append(projectProposalButton(proposal));
       list.append(box);
     }
     message("");
@@ -381,7 +385,7 @@ async function boot() {
 $("retry-session").addEventListener("click", boot);
 window.addEventListener("solvex:session", event => {
   if (state.user && state.user.id !== event.detail.user.id) {
-    state.dirty = state.sourceDirty = state.profileDirty = false;
+    state.dirty = state.sourceDirty = state.profileDirty = state.projectDirty = false;
     document.body.classList.add("booting");
     $("card-fields").replaceChildren();
     location.replace("/app"); return;
@@ -394,11 +398,11 @@ $("logout").addEventListener("click", event => {
   if (!canReplaceWork()) return;
   action(event.currentTarget, async () => {
     await api("/api/auth/logout", "POST", {});
-    state.dirty = state.sourceDirty = state.profileDirty = false; state.user = null; state.csrf = "";
+    state.dirty = state.sourceDirty = state.profileDirty = state.projectDirty = false; state.user = null; state.csrf = "";
     location.replace("/");
   });
 });
 window.addEventListener("beforeunload", event => {
-  if (state.dirty || state.sourceDirty || state.profileDirty) { event.preventDefault(); event.returnValue = ""; }
+  if (state.dirty || state.sourceDirty || state.profileDirty || state.projectDirty) { event.preventDefault(); event.returnValue = ""; }
 });
 window.addEventListener("hashchange", () => view(location.hash.slice(1)));

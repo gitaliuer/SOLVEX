@@ -17,6 +17,7 @@ from app.routes.agent import router as agent_router
 from app.routes.matching import router as matching_router
 from app.routes.profiles import router as profiles_router
 from app.routes.reviews import router as reviews_router
+from app.routes.projects import router as projects_router
 from app.routes.auth import current_session
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -36,6 +37,7 @@ app.include_router(agent_router)
 app.include_router(matching_router)
 app.include_router(profiles_router)
 app.include_router(reviews_router)
+app.include_router(projects_router)
 
 
 @app.exception_handler(HTTPException)

@@ -12,9 +12,10 @@
   <script defer src="/static/matching.js"></script>
   <script defer src="/static/profiles.js"></script>
   <script defer src="/static/reviews.js"></script>
+  <script defer src="/static/projects.js"></script>
   <script defer src="/static/agent.js"></script>
   <link rel="stylesheet" href="/static/matching.css">
-  <link rel="stylesheet" href="/static/agent.css"><link rel="stylesheet" href="/static/profiles.css">
+  <link rel="stylesheet" href="/static/agent.css"><link rel="stylesheet" href="/static/profiles.css"><link rel="stylesheet" href="/static/projects.css">
 </head>
 <body class="workspace booting" data-workspace="true">
   <a class="skip-link" href="#main">К содержимому</a>
@@ -26,6 +27,7 @@
       <button type="button" data-view="my-tasks" data-access="BUSINESS"><span aria-hidden="true">▤</span>Мои задачи</button>
       <button type="button" data-view="matches" data-access="BUSINESS"><span aria-hidden="true">◎</span>Подбор команд</button>
       <button type="button" data-view="business" data-access="BUSINESS"><span aria-hidden="true">↙</span>Отклики команд</button>
+      <button type="button" data-view="projects"><span aria-hidden="true">▦</span>Проекты</button>
       <button type="button" data-view="catalog"><span aria-hidden="true">◈</span>Каталог задач</button>
       <button type="button" data-view="team-profile"><span aria-hidden="true">◎</span>Мой профиль</button>
       <button type="button" data-view="my-proposals" data-access="TEAM"><span aria-hidden="true">↗</span>Мои отклики</button>
@@ -62,6 +64,11 @@
     </section>
     <section id="catalog" class="view" hidden><div class="intro catalog-intro"><div><span class="eyebrow">Возможности для вашей команды</span><h1>Ваша экспертиза.<br>Чья-то новая возможность.</h1><p>Реальные задачи от бизнеса. Найдите свою и предложите решение.</p></div><div class="catalog-total"><strong id="catalog-count">—</strong><span>найдено в каталоге</span></div></div><div class="panel filters"><label>Поиск <input id="catalog-search" type="search" maxlength="160" placeholder="Название или проблема"></label><label>Тема <select id="topic-filter"><option value="">Все темы</option></select></label><label>Готовность <select id="level-filter"><option value="">Любая</option><option value="draft">Начальная 0–39</option><option value="working">Рабочая 40–69</option><option value="ready">Готовая 70–89</option><option value="priority">Приоритетная 90–100</option></select></label><button type="button" id="refresh" class="secondary">Найти</button></div><div class="catalog-caption"><h2>Задачи бизнеса</h2><span>По рейтингу готовности</span></div><div id="task-list" class="cards"></div><section id="task-detail" class="panel" hidden tabindex="-1"></section></section>
     <section id="business" class="view" hidden><div class="intro"><div><span class="eyebrow">Решение за бизнесом</span><h1>Предложения команд</h1><p>Выбор независим: можно выбрать несколько команд. Баллы начисляются только после подтверждения этапа.</p></div></div><div class="proposal-selector"><label>Задача <select id="business-task"></select></label></div><section id="proposal-comparison" class="proposal-comparison" hidden></section><div id="proposal-list"></div></section>
+    <section id="projects" class="view" hidden>
+      <div class="intro"><div><span class="eyebrow">От договорённости к результату</span><h1>Работа, которая движется.</h1><p>Общая дорожная карта бизнеса и команды. Каждый этап — понятный следующий шаг.</p></div><button type="button" id="projects-refresh" class="secondary">Обновить проекты</button></div>
+      <div id="projects-status" role="status"></div><div id="project-list" class="project-list"></div>
+      <section id="project-detail" hidden tabindex="-1"></section>
+    </section>
     <section id="my-tasks" class="view" hidden><div class="intro"><div><span class="eyebrow">От идеи — к действию</span><h1>Ваши задачи</h1><p>Сохранённые мысли, рабочие черновики и уже открытые возможности.</p></div><button type="button" id="start-new-task" class="primary">+ Новая задача</button></div><div id="my-task-list" class="my-task-list"></div></section>
     <section id="team-profile" class="view" hidden>
       <div class="intro"><div><span class="eyebrow">За каждой идеей стоят люди</span><h1>Давайте познакомимся.</h1><p>Покажите, чем вы занимаетесь и что делает вашу компанию или команду особенной.</p></div></div>

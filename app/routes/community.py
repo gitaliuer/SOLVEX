@@ -117,7 +117,8 @@ def propose(request: Request, task_id: int, payload: ProposalContent):
 def my_proposals(request: Request):
     user = require_team(request)
     with connection() as db:
-        rows = db.execute("""SELECT p.*, t.card AS task_card FROM proposals p
+        rows = db.execute("""SELECT p.*, t.card AS task_card,
+                             (SELECT id FROM projects WHERE proposal_id=p.id) AS project_id FROM proposals p
                              JOIN teams tm ON tm.id=p.team_id JOIN tasks t ON t.id=p.task_id
                              WHERE tm.owner_user_id=? ORDER BY p.id DESC""", (user["id"],))
         result = []
@@ -134,7 +135,7 @@ def incoming_proposals(request: Request, task_id: int):
     with connection() as db:
         owned_task(db, task_id, user["id"])
         return {"proposals": [proposal_from_row(row) for row in db.execute(
-            "SELECT * FROM proposals WHERE task_id=? ORDER BY id DESC", (task_id,))]}
+            "SELECT p.*,(SELECT id FROM projects WHERE proposal_id=p.id) AS project_id FROM proposals p WHERE task_id=? ORDER BY id DESC", (task_id,))]}
 
 
 def owned_proposal(db, proposal_id, user_id):
@@ -151,6 +152,8 @@ def decide(request: Request, proposal_id: int, payload: DecisionInput):
     with connection() as db:
         db.execute("BEGIN IMMEDIATE")
         row = owned_proposal(db, proposal_id, user["id"])
+        if payload.status != 'selected' and db.execute('SELECT 1 FROM projects WHERE proposal_id=?',(proposal_id,)).fetchone():
+            error(409, 'CONFLICT', 'По этому отклику уже начат проект')
         if row["milestone_confirmed"] and payload.status != "selected":
             error(409, "CONFLICT", "После подтверждения этапа решение изменить нельзя")
         db.execute("UPDATE proposals SET status=? WHERE id=?", (payload.status, proposal_id))
@@ -163,6 +166,8 @@ def confirm(request: Request, proposal_id: int):
     with connection() as db:
         db.execute("BEGIN IMMEDIATE")
         row = owned_proposal(db, proposal_id, user["id"])
+        if db.execute('SELECT 1 FROM projects WHERE proposal_id=?',(proposal_id,)).fetchone():
+            error(409, 'CONFLICT', 'Подтвердите результат в дорожной карте проекта')
         if row["status"] != "selected":
             error(409, "CONFLICT", "Сначала выберите команду")
         if not row["milestone_confirmed"]:

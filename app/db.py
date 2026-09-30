@@ -75,6 +75,24 @@ def init_db() -> None:
             );
         """)
         db.executescript("""
+            CREATE TABLE IF NOT EXISTS projects (
+                id INTEGER PRIMARY KEY, proposal_id INTEGER NOT NULL UNIQUE REFERENCES proposals(id),
+                snapshot TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'active',
+                revision INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS project_milestones (
+                id INTEGER PRIMARY KEY, project_id INTEGER NOT NULL REFERENCES projects(id),
+                title TEXT NOT NULL, description TEXT NOT NULL, due_date TEXT,
+                status TEXT NOT NULL DEFAULT 'planned', result_note TEXT NOT NULL DEFAULT '',
+                result_url TEXT NOT NULL DEFAULT '', feedback TEXT NOT NULL DEFAULT ''
+            );
+            CREATE INDEX IF NOT EXISTS milestones_project ON project_milestones(project_id,id);
+            CREATE TABLE IF NOT EXISTS project_events (
+                id INTEGER PRIMARY KEY, project_id INTEGER NOT NULL REFERENCES projects(id),
+                milestone_id INTEGER, kind TEXT NOT NULL, actor_role TEXT NOT NULL,
+                content TEXT NOT NULL, created_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS events_project ON project_events(project_id,id);
             CREATE TABLE IF NOT EXISTS organization_profiles (
                 user_id INTEGER PRIMARY KEY REFERENCES users(id),
                 content TEXT NOT NULL DEFAULT '{}', image_id TEXT
