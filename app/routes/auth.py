@@ -28,11 +28,11 @@ def error(status: int, code: str, message: str):
 
 
 def cookie_name() -> str:
-    return "__Host-solvex_session" if os.getenv("APP_ENV") == "production" else "solvex_session"
+    return "__Host-solvex_session" if secure_cookie() else "solvex_session"
 
 
 def secure_cookie() -> bool:
-    return os.getenv("APP_ENV") == "production"
+    return os.getenv("APP_ENV") == "production" or bool(os.getenv("VERCEL"))
 
 
 def token_hash(token: str) -> str:

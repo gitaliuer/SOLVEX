@@ -4,6 +4,7 @@ import sqlite3
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from app.scoring import readiness
 
@@ -18,10 +19,21 @@ def database_path() -> Path:
 
 @contextmanager
 def connection():
-    path = database_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    db = sqlite3.connect(path, timeout=10)
-    db.row_factory = sqlite3.Row
+    cloud_url = os.getenv('TURSO_DATABASE_URL', '').strip()
+    cloud_token = os.getenv('TURSO_AUTH_TOKEN', '').strip()
+    if cloud_url or cloud_token:
+        parsed = urlsplit(cloud_url)
+        if not cloud_token or parsed.scheme not in ('libsql', 'https') or not parsed.hostname or parsed.username or parsed.password:
+            raise RuntimeError('Configure TURSO_DATABASE_URL and TURSO_AUTH_TOKEN on the server')
+        from app.cloud_db import connect
+        db = connect(cloud_url, cloud_token)
+    else:
+        if os.getenv('VERCEL'):
+            raise RuntimeError('Vercel requires a persistent remote database; configure TURSO_DATABASE_URL and TURSO_AUTH_TOKEN')
+        path = database_path()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        db = sqlite3.connect(path, timeout=10)
+        db.row_factory = sqlite3.Row
     db.execute("PRAGMA foreign_keys=ON")
     try:
         yield db
@@ -177,6 +189,7 @@ def init_db() -> None:
             CREATE INDEX IF NOT EXISTS agent_messages_task ON agent_messages(task_id, id);
         """)
         # Existing demo rows stay unowned. Never claim them for a new account.
+        db.execute('BEGIN IMMEDIATE')
         task_columns = {row["name"] for row in db.execute("PRAGMA table_info(tasks)")}
         if "revision" not in task_columns:
             db.execute("ALTER TABLE tasks ADD COLUMN revision INTEGER NOT NULL DEFAULT 0")
@@ -187,7 +200,7 @@ def init_db() -> None:
         if "owner_user_id" not in team_columns:
             db.execute("ALTER TABLE teams ADD COLUMN owner_user_id INTEGER REFERENCES users(id)")
         db.execute("CREATE UNIQUE INDEX IF NOT EXISTS teams_owner_id ON teams(owner_user_id)")
-        if db.execute("SELECT COUNT(*) FROM teams").fetchone()[0]:
+        if os.getenv('APP_ENV') == 'production' or os.getenv('VERCEL') or db.execute("SELECT COUNT(*) FROM teams").fetchone()[0]:
             return
         examples = [
             ("Ритейл", "Снизить списания продуктов", "В магазине часто списывают продукты с истекшим сроком.", "Хотим уменьшить списания", "Менеджеры магазина", "Есть еженедельные отчёты о списаниях."),

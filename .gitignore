@@ -2,6 +2,11 @@
 __pycache__/
 *.py[cod]
 .env
+.env.*
+!.env.example
+.vercel/
+*.db-shm
+*.db-wal
 *.db
 .pytest_cache/
 .idea/

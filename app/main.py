@@ -1,5 +1,6 @@
 from pathlib import Path
 import re
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -31,7 +32,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="AI Sana Challenge Hub", lifespan=lifespan)
+app = FastAPI(title="SOLVEX", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=ROOT / "web"), name="static")
 app.include_router(router)
 app.include_router(auth_router)
@@ -60,6 +61,9 @@ async def input_error(request: Request, exc: RequestValidationError):
 
 @app.middleware("http")
 async def input_limit(request: Request, call_next):
+    production = os.getenv('APP_ENV') == 'production' or bool(os.getenv('VERCEL'))
+    if production and re.match(r'^/api/(tasks|teams|proposals|business/tasks)(/|$)', request.url.path):
+        return JSONResponse({'error': {'code': 'NOT_FOUND', 'message': 'Маршрут не найден'}}, status_code=404)
     if request.url.path.startswith("/api/") and request.method in ("POST", "PUT", "PATCH"):
         image_upload = request.url.path == '/api/me/profile/image' or re.fullmatch(r'/api/me/tasks/[0-9]+/images', request.url.path)
         limit = 3 * 1024 * 1024 if image_upload and request.method == 'POST' else 32 * 1024
@@ -70,6 +74,9 @@ async def input_limit(request: Request, call_next):
             body.extend(chunk)
         request._body = bytes(body)
     response = await call_next(request)
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    response.headers['X-Frame-Options'] = 'DENY'
     if request.url.path.startswith(("/api/auth/", "/api/me/")) or request.url.path == "/app":
         response.headers["Cache-Control"] = "no-store"
     return response

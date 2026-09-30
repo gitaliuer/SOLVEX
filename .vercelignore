@@ -1,0 +1,13 @@
+.git
+.venv
+.env
+.env.*
+__pycache__
+**/__pycache__
+*.db
+**/*.db
+**/*.db-wal
+**/*.db-shm
+tests
+web/tests
+docs
