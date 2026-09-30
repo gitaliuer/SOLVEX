@@ -54,3 +54,26 @@ Vercel обслуживает FastAPI (`app/main.py`) и файлы `web/`. Ак
 Источники: [FastAPI на Vercel](https://vercel.com/docs/frameworks/backend/fastapi),
 [ограничение SQLite](https://vercel.com/kb/guide/is-sqlite-supported-in-vercel),
 [Turso Python remote libSQL](https://docs.turso.tech/sdk/python/quickstart).
+
+## Проверенный выпуск 30.09.2026
+
+Публичный адрес: **https://solvex-psi.vercel.app/**. Проект Vercel `solvex`,
+репозиторий `gitaliuer/SOLVEX`, production-ветка `main`. Исходный релиз
+`e0f8aa4`, production deploy `3JJpQWst4bSdaiRdyYKVMLTTE7P5` — Ready.
+Turso Cloud `solvex`, Starter $0/месяц, регион iad1; база подключена только
+к Production. OPENAI_API_KEY сохранён как Secret по разрешению владельца.
+
+Внешняя проверка HTTPS: главная, health и каталог — 200; личные задачи
+без сессии — 401; demo API — 404. Регистрация — 201; повторный вход из
+новой сессии восстановил историю. Настоящий AI-ответ завершился за 5,1 с,
+дал три уточняющих вопроса; квота Free 10 → 9. Загрузка учебного изображения
+— 201, чтение обработанного WebP из облачной базы — 200. Учебная задача
+остаётся приватным черновиком отдельного QA-аккаунта, каталог не заполнен
+тестовыми публикациями. Локальные аккаунты не переносились.
+
+Регрессия: 65/65 серверных тестов на SQLite, 65/65 на реальном libSQL
+драйвере с временными файлами, 58/58 AI-тестов. Платёжный провайдер
+по-прежнему не подключён; публикация не активирует приём денег.
+
+Настоящий Research через публичный API — 200 за 11,75 с, четыре источника,
+статус completed, квота 2 → 1. Фото черновика без сессии — 401.
