@@ -72,7 +72,7 @@ def save_profile(request: Request, payload: ProfileInput):
         return {'profile': profile_for(db, user['id'])}
 
 
-def normalize_photo(content):
+def normalize_photo(content, size=768):
     try:
         with warnings.catch_warnings():
             warnings.simplefilter('error', Image.DecompressionBombWarning)
@@ -81,7 +81,7 @@ def normalize_photo(content):
                     raise ValueError('Unsupported image')
                 source.load()
                 image = ImageOps.exif_transpose(source).convert('RGBA')
-                image.thumbnail((768, 768))
+                image.thumbnail((size, size))
                 output = io.BytesIO()
                 image.save(output, format='WEBP', quality=88)
                 return output.getvalue()

@@ -72,10 +72,12 @@ async function action(button, fn) {
     if (editing) state.busy = false;
     controls.forEach((control, index) => { control.disabled = disabledBefore[index]; });
     button.removeAttribute("aria-busy"); SolvexI18n.set(button,label);
+    if (editing) lockAgent();
   }
 }
 function view(name, options = {}) {
   if (!state.user) return;
+  const previousView = state.currentView;
   if (name.startsWith("projects/")) { options.projectId = Number(name.split("/")[1]); name = "projects"; }
   const business = ["create", "my-tasks", "business", "matches", "research"], team = ["my-proposals"];
   if ((business.includes(name) && state.user.role !== "BUSINESS") ||
@@ -101,7 +103,9 @@ function view(name, options = {}) {
   if (name === "research") loadResearch(options.taskId);
   if (name === "team-profile") loadProfile();
   if (name === "projects") loadProjects(options.projectId);
+  if (name === "messages") { SolvexI18n.set($("page-label"),SolvexI18n.text("Сообщения")); loadConversations(options.conversationId); }
   if (name === "my-proposals") loadMyProposals();
+  if (name !== previousView) window.scrollTo({top:0,behavior:'instant'});
 }
 for (const button of document.querySelectorAll("nav button")) button.addEventListener("click", () => view(button.dataset.view));
 $("about-link").addEventListener("click", event => {
@@ -112,8 +116,8 @@ function reveal(node) {
   node.focus({preventScroll:true});
   node.scrollIntoView({block:"start", behavior:"auto"});
 }
-function canReplaceWork() {
-  return !(state.dirty || state.sourceDirty || state.profileDirty || state.projectDirty) || window.confirm(SolvexI18n.text("Есть несохранённые изменения. Продолжить и отбросить их?"));
+function canReplaceWork(includeMessages = false) {
+  return !(state.dirty || state.sourceDirty || state.profileDirty || state.projectDirty || state.contactDirty || (includeMessages && hasMessageDrafts())) || window.confirm(SolvexI18n.text("Есть несохранённые изменения. Продолжить и отбросить их?"));
 }
 function renderBusinessTasks() {
   for (const id of ["my-task-list"]) {
@@ -201,7 +205,7 @@ function renderTasks() {
     open.addEventListener("click", () => openTask(task.id));
     const footer = el("div", null, "task-card-footer");
     footer.append(el("span", SolvexI18n.text("Готовность: {0}",LEVELS[task.level].toLowerCase()), `level-label level-${task.level}`), open);
-    box.append(top, el("h2", task.card.title), el("p", task.card.need || task.card.context || SolvexI18n.text("Описание ещё уточняется")), footer);
+    box.append(coverForTask(task), top, el("h2", task.card.title), el("p", task.card.need || task.card.context || SolvexI18n.text("Описание ещё уточняется")), footer);
     list.append(box);
   }
 }
@@ -216,6 +220,7 @@ async function openTask(id) {
     const task = await api("/api/catalog/tasks/" + id);
     if (request !== detailRequest) return;
     const detail = $("task-detail"); detail.replaceChildren();
+    detail.append(taskGallery(task));
     detail.append(el("span", task.topic + " · " + LEVELS[task.level] + " · " + task.score + "/100", "eyebrow"), el("h2", task.card.title));
     const fields = el("div", null, "detail-grid");
     for (const [key, title] of Object.entries(FIELDS)) {
@@ -223,15 +228,21 @@ async function openTask(id) {
       const cell = el("div"); cell.append(el("b", title), el("span", task.card[key] || SolvexI18n.text("Не указано"))); fields.append(cell);
     }
     if (task.organization?.name) detail.append(organizationCard(task.organization));
-    detail.append(fields); detail.hidden = false; reveal(detail);
+    detail.append(contactActions(task),fields); detail.hidden = false; reveal(detail);
     if (state.user.role !== "TEAM") { message(SolvexI18n.text("Опубликованная карточка задачи.")); return; }
-    const {team} = await api("/api/me/team");
+    const [{team}, {proposals:ownProposals}] = await Promise.all([api("/api/me/team"), api("/api/me/proposals")]);
     if (request !== detailRequest) return;
     if (!team) {
+      const section = el('div'); section.id='proposal-section'; detail.append(section);
       const button = el("button", SolvexI18n.text("Заполнить профиль команды →"), "primary");
       button.type = "button"; button.addEventListener("click", () => view("team-profile"));
-      detail.append(el("p", SolvexI18n.text("Чтобы отправить отклик, расскажите о вашей команде.")), button);
+      section.append(el("p", SolvexI18n.text("Чтобы отправить отклик, расскажите о вашей команде.")), button);
       message(SolvexI18n.text("Создайте профиль команды, чтобы предложить решение.")); return;
+    }
+    if (ownProposals.some(p => p.task_id === id)) {
+      const sent=el('div',null,'empty-state'), link=el('button',SolvexI18n.text('Мои отклики'),'secondary');
+      sent.id='proposal-section'; link.type='button'; link.onclick=()=>view('my-proposals');
+      sent.append(el('p',SolvexI18n.text('Вы уже отправили отклик. Продолжите обсуждение в сообщениях.')),link); detail.append(sent); message(''); return;
     }
     detail.append(el("h2", SolvexI18n.text("Ваш подход к решению")), el("p", SolvexI18n.combine(SolvexI18n.combine(SolvexI18n.text("Отклик от команды «"),team.name),"»"), "hint"));
     const form = el("form"); form.noValidate = true;
@@ -256,11 +267,12 @@ async function openTask(id) {
         idea: inputs.idea.value.trim(), plan: inputs.plan.value.trim(),
         duration_days: duration, prototype_url: url.href});
       const confirmation = el("div", null, "empty-state");
+      confirmation.id='proposal-section';
       confirmation.append(el("h3", SolvexI18n.text("Первый шаг сделан")), el("p", SolvexI18n.text("Отклик отправлен. Решение бизнеса появится в разделе «Мои отклики».")));
       form.replaceWith(confirmation);
       message(SolvexI18n.text("Предложение отправлено. Решение примет бизнес."));
     });});
-    detail.append(form); message(SolvexI18n.text("Задача открыта. Предложите свой подход."));
+    form.id='proposal-section'; detail.append(form); message(SolvexI18n.text("Задача открыта. Предложите свой подход."));
   } catch (error) { message(error.message, true); }
 }
 
@@ -316,6 +328,7 @@ async function loadProposals(successMessage = "") {
         })); actions.append(button);
       }
       if (p.status === "selected") actions.append(projectProposalButton(p));
+      actions.append(conversationButton(Number(taskId),p.id));
       if (p.status === "selected" && !p.project_id) {
         const button = el("button", p.milestone_confirmed ? SolvexI18n.text("Этап подтверждён") : SolvexI18n.text("Подтвердить этап +10"), "secondary");
         button.disabled = p.milestone_confirmed;
@@ -387,6 +400,7 @@ $("retry-session").addEventListener("click", boot);
 window.addEventListener("solvex:session", event => {
   if (state.user && state.user.id !== event.detail.user.id) {
     state.dirty = state.sourceDirty = state.profileDirty = state.projectDirty = false;
+    state.contactDirty=false; dm.drafts.clear();
     document.body.classList.add("booting");
     $("card-fields").replaceChildren();
     location.replace("/app"); return;
@@ -395,15 +409,16 @@ window.addEventListener("solvex:session", event => {
   message(SolvexI18n.text("Вход восстановлен. Можно продолжить с несохранёнными изменениями."));
 });
 $("logout").addEventListener("click", event => {
-  if (state.busy) { message(SolvexI18n.text("Дождитесь завершения текущего действия.")); return; }
-  if (!canReplaceWork()) return;
+  if (state.busy || dm.sending) { message(SolvexI18n.text("Дождитесь завершения текущего действия.")); return; }
+  if (!canReplaceWork(true)) return;
   action(event.currentTarget, async () => {
     await api("/api/auth/logout", "POST", {});
     state.dirty = state.sourceDirty = state.profileDirty = state.projectDirty = false; state.user = null; state.csrf = "";
+    state.contactDirty=false; dm.drafts.clear();
     location.replace("/");
   });
 });
 window.addEventListener("beforeunload", event => {
-  if (state.dirty || state.sourceDirty || state.profileDirty || state.projectDirty) { event.preventDefault(); event.returnValue = ""; }
+  if (state.dirty || state.sourceDirty || state.profileDirty || state.projectDirty || state.contactDirty || hasMessageDrafts()) { event.preventDefault(); event.returnValue = ""; }
 });
 window.addEventListener("hashchange", () => view(location.hash.slice(1)));

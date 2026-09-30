@@ -14,10 +14,12 @@
   <script defer src="/static/reviews.js"></script>
   <script defer src="/static/projects.js"></script>
   <script defer src="/static/research.js"></script>
+  <script defer src="/static/collaboration.js"></script>
   <script defer src="/static/agent.js"></script>
   <link rel="stylesheet" href="/static/matching.css">
   <link rel="stylesheet" href="/static/research.css">
   <link rel="stylesheet" href="/static/agent.css"><link rel="stylesheet" href="/static/profiles.css"><link rel="stylesheet" href="/static/projects.css">
+  <link rel="stylesheet" href="/static/collaboration.css">
 </head>
 <body class="workspace booting" data-workspace="true">
   <a class="skip-link" href="#main">К содержимому</a>
@@ -31,6 +33,7 @@
       <button type="button" data-view="matches" data-access="BUSINESS"><span aria-hidden="true">◎</span>Подбор команд</button>
       <button type="button" data-view="business" data-access="BUSINESS"><span aria-hidden="true">↙</span>Отклики команд</button>
       <button type="button" data-view="projects"><span aria-hidden="true">▦</span>Проекты</button>
+      <button type="button" data-view="messages"><span aria-hidden="true">▱</span>Сообщения <b id="messages-badge" class="unread-count"></b></button>
       <button type="button" data-view="catalog"><span aria-hidden="true">◈</span>Каталог задач</button>
       <button type="button" data-view="team-profile"><span aria-hidden="true">◎</span>Мой профиль</button>
       <button type="button" data-view="my-proposals" data-access="TEAM"><span aria-hidden="true">↗</span>Мои отклики</button>
@@ -55,6 +58,12 @@
           <form id="chat-form" class="chat-composer"><label class="sr-only" for="chat-input">Сообщение AI Agent</label><textarea id="chat-input" rows="2" maxlength="6000" placeholder="Расскажите о задаче или ответьте агенту…"></textarea><div class="composer-bottom"><span>Enter — отправить · Shift + Enter — новая строка</span><button id="send-message" type="submit" class="primary" aria-label="Отправить сообщение">↑</button></div></form><p class="chat-footnote">AI может ошибаться. Факты подтверждаете вы.</p>
         </section>
         <aside id="editor" class="agent-preview" aria-labelledby="editor-title"><header class="preview-heading"><div><span class="eyebrow">Собираем по ходу диалога</span><h2 id="editor-title">Карточка задачи</h2><span id="preview-score">Готовность 0/100</span></div><span class="preview-icon" aria-hidden="true">▤</span></header><div class="preview-scroll"><label for="topic" class="topic-label">Направление</label><input id="topic" maxlength="80" placeholder="Например, ритейл"><div id="card-fields"></div></div><div class="preview-actions"><p id="unsaved" role="status" hidden>Есть несохранённые изменения</p><button type="button" id="save" class="secondary">Сохранить изменения</button><button type="button" id="publish" class="primary">Опубликовать задачу ↗</button><button type="button" id="find-teams" class="primary" hidden>Найти команду →</button><p id="publication-hint">Публикация откроет все поля карточки, включая контакт. Можно с любым рейтингом.</p></div></aside>
+      </div>
+    </section>
+    <section id="messages" class="view" hidden aria-labelledby="messages-title">
+      <div class="intro"><div><span class="eyebrow">От знакомства к совместной работе</span><h1 id="messages-title">Сообщения</h1><p>Обсуждайте задачу напрямую. Здесь отвечают люди — бизнес и команды.</p></div><button id="messages-refresh" type="button" class="secondary">Обновить</button></div>
+      <div class="inbox-layout"><aside id="conversation-list" aria-label="Переписки по задачам"></aside><div id="conversation-empty" class="empty-state"><span class="inbox-symbol" aria-hidden="true">▱</span><h2>Всё начинается с разговора</h2><p>Выберите переписку или напишите из карточки задачи.</p></div>
+        <section id="conversation-panel" class="conversation-panel" hidden><header><div><span class="eyebrow">Личная переписка</span><h2 id="conversation-title"></h2><button type="button" id="conversation-task" class="text-button"></button></div></header><div id="direct-log" role="log" aria-label="Сообщения с собеседником" aria-live="polite"></div><p id="direct-status" role="status"></p><form id="direct-form"><label class="sr-only" for="direct-input">Сообщение собеседнику</label><textarea id="direct-input" rows="2" maxlength="4000" required placeholder="Уточните детали или предложите обсудить задачу…"></textarea><div><small>Enter — отправить · Shift + Enter — новая строка</small><button id="direct-send" type="submit" class="primary">Отправить</button></div></form></section>
       </div>
     </section>
     <section id="research" class="view" hidden aria-labelledby="research-title">

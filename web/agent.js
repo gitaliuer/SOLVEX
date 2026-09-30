@@ -23,13 +23,14 @@ document.querySelectorAll(".agent-mobile-tabs button").forEach(button => {
 });
 function lockAgent() {
   const pending = agent.sending || agent.run?.status === "pending";
-  $("send-message").disabled = pending;
+  $("send-message").disabled = pending || state.busy;
   $("send-message").setAttribute("aria-busy", String(pending));
-  for (const node of $("editor").querySelectorAll("input,textarea,button")) node.disabled = pending;
-  $("new-task").disabled = pending;
+  for (const node of $("editor").querySelectorAll("input,textarea,button")) node.disabled = pending || state.busy;
+  $("new-task").disabled = pending || state.busy;
   $("retry-message").disabled = pending;
   $("reload-agent").disabled = pending;
   $("agent-activity").hidden = !pending;
+  mediaSyncLocks();
   SolvexI18n.set($("agent-status"),pending ? SolvexI18n.text("Работаю над вашим сообщением") :
     agent.run?.status === "failed" ? SolvexI18n.text("Сообщение сохранено · нужен повтор") :
     agent.messages.length ? SolvexI18n.text("История сохранена · можно продолжать") : SolvexI18n.text("Начните с того, что важно"));
@@ -131,6 +132,7 @@ function renderMessages() {
 function acceptSnapshot(data, replaceCard = true) {
   agent.task = data.task; agent.messages = data.messages; agent.run = data.run;
   state.taskId = data.task.id; state.card = data.task.card;
+  setTaskMedia(data.task);
   rememberTask(data.task.id);
   if (replaceCard && !state.dirty) {
     $("topic").value = data.task.topic === "Без темы" ? "" : data.task.topic;
@@ -149,6 +151,7 @@ function resetAgent() {
   clearTimeout(agent.polling); agent.generation++;
   Object.assign(agent, {task:null,messages:[],run:null,sending:false,request:null});
   state.taskId = null; state.card = null; state.sourceDirty = false;
+  setTaskMedia(null);
   $("chat-messages").replaceChildren(); $("chat-input").value = ""; $("chat-input").style.height = ""; $("topic").value = "";
   $("chat-welcome").hidden = false; $("agent-error").hidden = true; $("chat-jump").hidden = true;
   renderEditor(blankCard()); markSaved();
@@ -171,6 +174,7 @@ async function openSavedTask(id, initial = false) {
   clearTimeout(agent.polling);
   state.sourceDirty = false; markSaved();
   $("chat-input").value = ""; $("chat-input").style.height = ""; $("chat-messages").replaceChildren();
+  mediaTaskId=undefined;
   acceptSnapshot(data); selectPane("chat");
   if (!initial) view("create");
   if (data.run?.status === "pending") pollAgent();

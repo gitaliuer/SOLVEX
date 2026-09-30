@@ -75,6 +75,28 @@ def init_db() -> None:
             );
         """)
         db.executescript("""
+            CREATE TABLE IF NOT EXISTS task_images (
+                id TEXT PRIMARY KEY, task_id INTEGER NOT NULL REFERENCES tasks(id),
+                content BLOB NOT NULL, is_cover INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS images_task ON task_images(task_id,is_cover,created_at);
+            CREATE TABLE IF NOT EXISTS task_contacts (
+                task_id INTEGER PRIMARY KEY REFERENCES tasks(id), phone TEXT NOT NULL,
+                enabled INTEGER NOT NULL DEFAULT 0
+            );
+            CREATE TABLE IF NOT EXISTS conversations (
+                id INTEGER PRIMARY KEY, task_id INTEGER NOT NULL REFERENCES tasks(id),
+                team_user_id INTEGER NOT NULL REFERENCES users(id),
+                business_read_id INTEGER NOT NULL DEFAULT 0, team_read_id INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL, UNIQUE(task_id,team_user_id)
+            );
+            CREATE TABLE IF NOT EXISTS direct_messages (
+                id INTEGER PRIMARY KEY, conversation_id INTEGER NOT NULL REFERENCES conversations(id),
+                sender_id INTEGER NOT NULL REFERENCES users(id), request_id TEXT NOT NULL,
+                text TEXT NOT NULL, created_at TEXT NOT NULL, UNIQUE(sender_id,request_id)
+            );
+            CREATE INDEX IF NOT EXISTS dm_conversation ON direct_messages(conversation_id,id);
+            CREATE INDEX IF NOT EXISTS dm_sender_time ON direct_messages(sender_id,created_at);
             CREATE TABLE IF NOT EXISTS research_runs (
                 id TEXT PRIMARY KEY, task_id INTEGER NOT NULL REFERENCES tasks(id),
                 user_id INTEGER NOT NULL REFERENCES users(id), locale TEXT NOT NULL,
@@ -208,7 +230,18 @@ def task_from_row(db: sqlite3.Connection, row: sqlite3.Row) -> dict:
     count = db.execute("SELECT COUNT(*) FROM proposals WHERE task_id=?", (row["id"],)).fetchone()[0]
     return {"id": row["id"], "topic": row["topic"], "card": card, "confirmed_fields": fields,
             "status": row["status"], **readiness(card, fields), "proposals_count": count,
-            "created_at": row["created_at"], "revision": row["revision"]}
+            "created_at": row["created_at"], "revision": row["revision"],
+            "images": task_images(db, row['id']), "whatsapp_url": task_whatsapp(db, row['id'])}
+
+
+def task_images(db, task_id):
+    return [{'id': r['id'], 'url': '/api/task-images/' + r['id'], 'is_cover': bool(r['is_cover'])}
+            for r in db.execute('SELECT id,is_cover FROM task_images WHERE task_id=? ORDER BY is_cover DESC,created_at,id', (task_id,))]
+
+
+def task_whatsapp(db, task_id):
+    row = db.execute('SELECT phone FROM task_contacts WHERE task_id=? AND enabled=1', (task_id,)).fetchone()
+    return 'https://wa.me/' + row['phone'] if row else ''
 
 
 def proposal_from_row(row: sqlite3.Row) -> dict:

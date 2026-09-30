@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -19,6 +20,7 @@ from app.routes.profiles import router as profiles_router
 from app.routes.reviews import router as reviews_router
 from app.routes.projects import router as projects_router
 from app.routes.research import router as research_router
+from app.routes.collaboration import router as collaboration_router
 from app.routes.auth import current_session
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -40,6 +42,7 @@ app.include_router(profiles_router)
 app.include_router(reviews_router)
 app.include_router(projects_router)
 app.include_router(research_router)
+app.include_router(collaboration_router)
 
 
 @app.exception_handler(HTTPException)
@@ -56,7 +59,8 @@ async def input_error(request: Request, exc: RequestValidationError):
 @app.middleware("http")
 async def input_limit(request: Request, call_next):
     if request.url.path.startswith("/api/") and request.method in ("POST", "PUT", "PATCH"):
-        limit = 3 * 1024 * 1024 if request.url.path == '/api/me/profile/image' and request.method == 'POST' else 32 * 1024
+        image_upload = request.url.path == '/api/me/profile/image' or re.fullmatch(r'/api/me/tasks/[0-9]+/images', request.url.path)
+        limit = 3 * 1024 * 1024 if image_upload and request.method == 'POST' else 32 * 1024
         body = bytearray()
         async for chunk in request.stream():
             if len(body) + len(chunk) > limit:
