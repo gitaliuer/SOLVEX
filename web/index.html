@@ -7,6 +7,8 @@
   <title>SOLVEX — от проблемы к решению</title>
   <link rel="icon" href="/static/assets/mark.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/static/product.css">
+  <script defer src="/static/translations.js"></script>
+  <script defer src="/static/i18n.js"></script>
   <script defer src="/static/auth.js"></script>
   <script defer src="/static/landing.js"></script>
 </head>
@@ -15,7 +17,7 @@
   <header class="landing-header wrap">
     <a class="solvex-brand" href="/" aria-label="SOLVEX — главная"><img src="/static/assets/mark.svg" width="34" height="34" alt=""><span>SOLVEX</span></a>
     <nav class="landing-nav" aria-label="Главная навигация"><a href="#possibilities">Возможности</a><button type="button" data-auth="register" data-role="BUSINESS">Для бизнеса</button><button type="button" data-auth="register" data-role="TEAM">Для команд</button></nav>
-    <div class="header-actions"><button class="text-button" type="button" data-auth="login">Войти</button><button class="button primary small" type="button" data-auth="register">Начать <span aria-hidden="true">↗</span></button><a class="button primary" id="return-to-app" href="/app" hidden>В кабинет <span aria-hidden="true">↗</span></a></div>
+    <div class="header-actions"><label class="language-switch"><span class="sr-only">Язык интерфейса</span><select data-language aria-label="Язык интерфейса"><option value="ru">RU</option><option value="en">EN</option></select></label><button class="text-button" type="button" data-auth="login">Войти</button><button class="button primary small" type="button" data-auth="register">Начать <span aria-hidden="true">↗</span></button><a class="button primary" id="return-to-app" href="/app" hidden>В кабинет <span aria-hidden="true">↗</span></a></div>
   </header>
   <main id="main" tabindex="-1" class="wrap">
     <section class="hero" aria-labelledby="hero-title">

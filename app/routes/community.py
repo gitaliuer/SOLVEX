@@ -7,6 +7,7 @@ from fastapi import APIRouter, Query, Request
 from app.db import connection, now, proposal_from_row, task_from_row
 from app.routes.auth import current_session, error, require_business, require_csrf
 from app.routes.me import owned_task
+from app.routes.profiles import profile_for
 from app.routes.api import card, questions
 from app.schemas import (CardGenerationInput, DecisionInput, DraftInput,
                          ProposalContent, TeamProfileInput)
@@ -26,7 +27,9 @@ def require_team(request: Request, *, mutate: bool = False):
 def team_from_row(row):
     if row is None:
         return None
-    return {"id": row["id"], "name": row["name"], "points": row["points"],
+    with connection() as db:
+        profile = profile_for(db, row['owner_user_id']) if row['owner_user_id'] else {}
+    return {**profile, "id": row["id"], "name": row["name"], "points": row["points"],
             **{key: json.loads(row[key]) for key in ("interests", "skills", "technologies")}}
 
 
@@ -57,7 +60,8 @@ def catalog(topic: str | None = None, level: str | None = None,
 @router.get("/catalog/tasks/{task_id}")
 def catalog_task(task_id: int):
     with connection() as db:
-        return task_from_row(db, published_task(db, task_id))
+        row = published_task(db, task_id)
+        return {**task_from_row(db, row), 'organization': profile_for(db, row['owner_user_id'])}
 
 
 @router.get("/catalog/teams")

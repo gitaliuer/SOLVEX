@@ -1,7 +1,7 @@
 /* Isolated agent regressions; all model and API responses below are fixtures. */
 (async () => {
   const output = document.getElementById("results"), frame = document.getElementById("preview");
-  const [html, app, agent] = await Promise.all(["workspace.html", "app.js", "agent.js"].map(async file => (await fetch("/static/" + file, {cache:"no-store"})).text()));
+  const [html, app, agent, translations, i18n] = await Promise.all(["workspace.html", "app.js", "agent.js", "translations.js", "i18n.js"].map(async file => (await fetch("/static/" + file, {cache:"no-store"})).text()));
   frame.srcdoc = html.replace(/<script[^>]+src="[^"]+"[^>]*><\/script>/g, "");
   await new Promise(resolve => frame.addEventListener("load", resolve, {once:true}));
   const win = frame.contentWindow, doc = win.document, byId = id => doc.getElementById(id), requests = [];
@@ -37,7 +37,7 @@
     else throw new Error("Unexpected fixture route: "+url);
     return new Response(JSON.stringify(data),{status,headers:{"Content-Type":"application/json"}});
   };
-  const script=doc.createElement("script");script.textContent=app+"\n"+agent;doc.body.append(script);
+  const script=doc.createElement("script");script.textContent=translations+"\n"+i18n+"\n"+app+"\n"+agent;doc.body.append(script);
   const lines=[];
   function check(value,label){lines.push((value?"PASS ":"FAIL ")+label);output.textContent=lines.join("\n");}
   const delay=()=>new Promise(resolve=>setTimeout(resolve,350));

@@ -15,6 +15,8 @@ from app.routes.me import router as me_router
 from app.routes.community import router as community_router
 from app.routes.agent import router as agent_router
 from app.routes.matching import router as matching_router
+from app.routes.profiles import router as profiles_router
+from app.routes.reviews import router as reviews_router
 from app.routes.auth import current_session
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -32,6 +34,8 @@ app.include_router(me_router)
 app.include_router(community_router)
 app.include_router(agent_router)
 app.include_router(matching_router)
+app.include_router(profiles_router)
+app.include_router(reviews_router)
 
 
 @app.exception_handler(HTTPException)
@@ -48,8 +52,13 @@ async def input_error(request: Request, exc: RequestValidationError):
 @app.middleware("http")
 async def input_limit(request: Request, call_next):
     if request.url.path.startswith("/api/") and request.method in ("POST", "PUT", "PATCH"):
-        if len(await request.body()) > 32 * 1024:
-            return JSONResponse({"error": {"code": "VALIDATION_ERROR", "message": "Запрос превышает 32 КБ"}}, status_code=413)
+        limit = 3 * 1024 * 1024 if request.url.path == '/api/me/profile/image' and request.method == 'POST' else 32 * 1024
+        body = bytearray()
+        async for chunk in request.stream():
+            if len(body) + len(chunk) > limit:
+                return JSONResponse({'error': {'code': 'VALIDATION_ERROR', 'message': 'Фото превышает 3 МБ' if limit > 32768 else 'Запрос превышает 32 КБ'}}, status_code=413)
+            body.extend(chunk)
+        request._body = bytes(body)
     response = await call_next(request)
     if request.url.path.startswith(("/api/auth/", "/api/me/")) or request.url.path == "/app":
         response.headers["Cache-Control"] = "no-store"

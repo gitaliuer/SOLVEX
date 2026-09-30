@@ -75,6 +75,18 @@ def init_db() -> None:
             );
         """)
         db.executescript("""
+            CREATE TABLE IF NOT EXISTS organization_profiles (
+                user_id INTEGER PRIMARY KEY REFERENCES users(id),
+                content TEXT NOT NULL DEFAULT '{}', image_id TEXT
+            );
+            CREATE TABLE IF NOT EXISTS profile_images (
+                id TEXT PRIMARY KEY, content BLOB NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS proposal_reviews (
+                proposal_id INTEGER NOT NULL REFERENCES proposals(id), locale TEXT NOT NULL,
+                digest TEXT NOT NULL, content TEXT, started_at TEXT NOT NULL,
+                run_id TEXT NOT NULL, PRIMARY KEY(proposal_id, locale)
+            );
             CREATE TABLE IF NOT EXISTS team_shortlist (
                 task_id INTEGER NOT NULL REFERENCES tasks(id),
                 team_id INTEGER NOT NULL REFERENCES teams(id), created_at TEXT NOT NULL,

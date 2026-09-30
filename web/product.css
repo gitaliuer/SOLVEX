@@ -904,3 +904,9 @@ button:active:not(:disabled),.button:active {
     transition:none!important
   }
 }
+
+.language-switch select{appearance:none;border:1px solid #30364b;border-radius:10px;background:#101622;color:#e9ecf8;font-family:inherit;font-size:12px;font-weight:600;padding:9px 12px;cursor:pointer;min-width:54px;width:auto;margin:0}
+.landing .language-switch{display:flex;align-items:center}
+.sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+.auth-dialog .auth-language{position:absolute;top:33px;right:58px;margin:0;display:block}
+@media(max-width:480px){.auth-dialog .auth-language{top:24px;right:54px}.auth-dialog .solvex-brand span{letter-spacing:2px}}

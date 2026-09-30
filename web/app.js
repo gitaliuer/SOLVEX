@@ -1,16 +1,16 @@
 "use strict";
 
 const FIELDS = {
-  title: "Название", context: "Контекст", need: "Потребность",
-  users: "Пользователи", data: "Данные и материалы", constraints: "Ограничения",
-  expected_result: "Ожидаемый результат", success_criteria: "Критерии успеха",
-  contact: "Контакт бизнеса", interaction_format: "Формат взаимодействия"
+  title: SolvexI18n.text("Название"), context: SolvexI18n.text("Контекст"), need: SolvexI18n.text("Потребность"),
+  users: SolvexI18n.text("Пользователи"), data: SolvexI18n.text("Данные и материалы"), constraints: SolvexI18n.text("Ограничения"),
+  expected_result: SolvexI18n.text("Ожидаемый результат"), success_criteria: SolvexI18n.text("Критерии успеха"),
+  contact: SolvexI18n.text("Контакт бизнеса"), interaction_format: SolvexI18n.text("Формат взаимодействия")
 };
-const LEVELS = {draft: "Начальная", working: "Рабочая", ready: "Готовая", priority: "Приоритетная"};
+const LEVELS = {draft: SolvexI18n.text("Начальная"), working: SolvexI18n.text("Рабочая"), ready: SolvexI18n.text("Готовая"), priority: SolvexI18n.text("Приоритетная")};
 const FIELD_GROUPS = [
-  ["Суть задачи", ["title", "context", "need", "users"]],
-  ["Данные и результат", ["data", "expected_result", "success_criteria"]],
-  ["Условия и связь", ["constraints", "contact", "interaction_format"]]
+  [SolvexI18n.text("Суть задачи"), ["title", "context", "need", "users"]],
+  [SolvexI18n.text("Данные и результат"), ["data", "expected_result", "success_criteria"]],
+  [SolvexI18n.text("Условия и связь"), ["constraints", "contact", "interaction_format"]]
 ];
 const $ = id => document.getElementById(id);
 const state = {user: null, csrf: '', currentView: 'create', profileDirty: false, questions: [], card: null, taskId: null, tasks: [], businessTasks: [], teams: [], topics: [], dirty: false, sourceDirty: false, busy: false};
@@ -19,12 +19,12 @@ let catalogRequest = 0, detailRequest = 0, businessRequest = 0;
 
 function el(tag, text, className) {
   const node = document.createElement(tag);
-  if (text != null) node.textContent = text;
+  if (text != null) SolvexI18n.set(node,text);
   if (className) node.className = className;
   return node;
 }
 function message(text, error = false) {
-  $("notice").textContent = text;
+  SolvexI18n.set($("notice"),text);
   $("notice").classList.toggle("error", error);
   $("notice").setAttribute("role", error ? "alert" : "status");
 }
@@ -41,15 +41,15 @@ async function api(path, method = "GET", body = null, timeout = 12000) {
       if (response.status === 401) {
         if (path === "/api/auth/logout") return {status: "ok"};
         SolvexAuth.open("login");
-        throw new Error("Сессия истекла. Войдите снова — несохранённый текст остаётся в этом окне.");
+        throw new Error(SolvexI18n.text("Сессия истекла. Войдите снова — несохранённый текст остаётся в этом окне."));
       }
-      const failure = new Error(data.error?.message || "Ошибка " + response.status);
+      const failure = new Error(SolvexI18n.failure(data.error));
       failure.status = response.status; throw failure;
     }
     return data;
   } catch (error) {
-    if (error.name === "AbortError") throw new Error("Время ожидания истекло. Попробуйте ещё раз.");
-    if (error instanceof TypeError) throw new Error("Сервер недоступен. Проверьте запуск приложения и попробуйте ещё раз.");
+    if (error.name === "AbortError") throw new Error(SolvexI18n.text("Время ожидания истекло. Попробуйте ещё раз."));
+    if (error instanceof TypeError) throw new Error(SolvexI18n.text("Сервер недоступен. Проверьте запуск приложения и попробуйте ещё раз."));
     throw error;
   } finally { clearTimeout(timer); }
 }
@@ -63,20 +63,20 @@ async function action(button, fn) {
   const controls = scope === button ? [button] : [...scope.querySelectorAll("button, input, textarea, select")];
   if (!controls.includes(button)) controls.push(button);
   const disabledBefore = controls.map(control => control.disabled);
-  const label = button.textContent;
+  const label = SolvexI18n.value(button);
   controls.forEach(control => { control.disabled = true; });
   button.setAttribute("aria-busy", "true");
-  button.textContent = "Подождите…";
+  SolvexI18n.set(button,SolvexI18n.text("Подождите…"));
   try { await fn(); } catch (error) { message(error.message, true); }
   finally {
     if (editing) state.busy = false;
     controls.forEach((control, index) => { control.disabled = disabledBefore[index]; });
-    button.removeAttribute("aria-busy"); button.textContent = label;
+    button.removeAttribute("aria-busy"); SolvexI18n.set(button,label);
   }
 }
 function view(name, options = {}) {
   if (!state.user) return;
-  const business = ["create", "my-tasks", "business", "matches"], team = ["team-profile", "my-proposals"];
+  const business = ["create", "my-tasks", "business", "matches"], team = ["my-proposals"];
   if ((business.includes(name) && state.user.role !== "BUSINESS") ||
       (team.includes(name) && state.user.role !== "TEAM") || !document.getElementById(name)?.classList.contains("view")) {
     name = state.user.role === "BUSINESS" ? "create" : "catalog";
@@ -84,8 +84,8 @@ function view(name, options = {}) {
   state.currentView = name;
   if (name !== "catalog") { catalogRequest++; detailRequest++; }
   history.replaceState(null, "", "#" + name);
-  const labels = {create:"AI Agent", "my-tasks":"Мои задачи", business:"Отклики команд", matches:"Подбор команд", catalog:"Каталог задач", "team-profile":"Профиль команды", "my-proposals":"Мои отклики", about:"О платформе"};
-  $("page-label").textContent = labels[name] || "SOLVEX";
+  const labels = {create:"AI Agent", "my-tasks":SolvexI18n.text("Мои задачи"), business:SolvexI18n.text("Отклики команд"), matches:SolvexI18n.text("Подбор команд"), catalog:SolvexI18n.text("Каталог задач"), "team-profile":SolvexI18n.text("Мой профиль"), "my-proposals":SolvexI18n.text("Мои отклики"), about:SolvexI18n.text("О платформе")};
+  SolvexI18n.set($("page-label"),labels[name] || "SOLVEX");
   for (const section of document.querySelectorAll(".view")) section.hidden = section.id !== name;
   const role = name === "about" ? null : name === "catalog" ? "team" : "business";
   for (const button of document.querySelectorAll("nav button")) {
@@ -97,7 +97,7 @@ function view(name, options = {}) {
   if (name === "catalog") loadTasks(true);
   if (name === "business") loadBusiness(options.taskId);
   if (name === "matches") loadMatching(options.taskId);
-  if (name === "team-profile") loadTeamProfile();
+  if (name === "team-profile") loadProfile();
   if (name === "my-proposals") loadMyProposals();
 }
 for (const button of document.querySelectorAll("nav button")) button.addEventListener("click", () => view(button.dataset.view));
@@ -110,21 +110,21 @@ function reveal(node) {
   node.scrollIntoView({block:"start", behavior:"auto"});
 }
 function canReplaceWork() {
-  return !(state.dirty || state.sourceDirty || state.profileDirty) || window.confirm("Есть несохранённые изменения. Продолжить и отбросить их?");
+  return !(state.dirty || state.sourceDirty || state.profileDirty) || window.confirm(SolvexI18n.text("Есть несохранённые изменения. Продолжить и отбросить их?"));
 }
 function renderBusinessTasks() {
   for (const id of ["my-task-list"]) {
     const list = $(id); list.replaceChildren();
     if (!state.businessTasks.length) {
       const empty = el("div", null, "empty-state");
-      empty.append(el("h2", "У каждой идеи есть начало"), el("p", "Расскажите о своей задаче — первый черновик появится здесь."));
+      empty.append(el("h2", SolvexI18n.text("У каждой идеи есть начало")), el("p", SolvexI18n.text("Расскажите о своей задаче — первый черновик появится здесь.")));
       list.append(empty); continue;
     }
     for (const task of state.businessTasks) {
       const item = el("article", null, "saved-task"), text = el("div");
-      const button = el("button", "Продолжить редактирование", "secondary");
-      text.append(el("span", task.topic, "eyebrow"), el("strong", task.card.title || "Без названия"),
-        el("span", "Готовность: " + task.score + "/100 · " + (task.status === "published" ? "В каталоге" : "Черновик")));
+      const button = el("button", SolvexI18n.text("Продолжить редактирование"), "secondary");
+      text.append(el("span", task.topic, "eyebrow"), el("strong", task.card.title || SolvexI18n.text("Без названия")),
+        el("span", SolvexI18n.combine(SolvexI18n.combine(SolvexI18n.combine(SolvexI18n.text("Готовность: "),task.score),"/100 · "),task.status === "published" ? SolvexI18n.text("В каталоге") : SolvexI18n.text("Черновик"))));
       button.type = "button";
       button.addEventListener("click", () => {
         if (state.busy) return;
@@ -132,7 +132,7 @@ function renderBusinessTasks() {
       });
       const actions = el("div", null, "actions"); actions.append(button);
       if (task.status === "published") {
-        const match = el("button", "Подобрать команду →", "text-button"); match.type = "button";
+        const match = el("button", SolvexI18n.text("Подобрать команду →"), "text-button"); match.type = "button";
         match.onclick = () => view("matches", {taskId:task.id}); actions.append(match);
       }
       item.append(text, actions); list.append(item);
@@ -147,19 +147,19 @@ function upsertBusinessTask(task) {
 async function loadBusinessTasks(quiet = false) {
   const request = ++businessRequest;
   try {
-    if (!quiet) message("Загружаем сохранённые задачи...");
+    if (!quiet) message(SolvexI18n.text("Загружаем сохранённые задачи..."));
     const data = await api("/api/me/tasks");
     if (request !== businessRequest) return;
     state.businessTasks = data.tasks;
     renderBusinessTasks();
-    if (!quiet) message(`Сохранённые задачи загружены: ${data.tasks.length}.`);
+    if (!quiet) message(SolvexI18n.text("Сохранённые задачи загружены: {0}.",data.tasks.length));
   } catch (error) { message(error.message, true); }
 }
 async function loadTasks(refreshTopics = false) {
   const request = ++catalogRequest;
   detailRequest++;
   try {
-    message("Загружаем каталог...");
+    message(SolvexI18n.text("Загружаем каталог..."));
     $("task-detail").hidden = true;
     $("task-detail").replaceChildren();
     const topic = $("topic-filter").value, level = $("level-filter").value;
@@ -176,29 +176,29 @@ async function loadTasks(refreshTopics = false) {
       if (request !== catalogRequest) return;
       state.topics = [...new Set(allTasks.map(task => task.topic))];
       const filter = $("topic-filter"), chosen = filter.value;
-      filter.replaceChildren(new Option("Все темы", ""), ...state.topics.map(t => new Option(t, t)));
+      filter.replaceChildren(SolvexI18n.option(SolvexI18n.text("Все темы"),""), ...state.topics.map(t => SolvexI18n.option(t,t)));
       filter.value = state.topics.includes(chosen) ? chosen : "";
     }
     renderTasks();
-    message(`Найдено задач: ${data.tasks.length}. Сортировка — по рейтингу.`);
+    message(SolvexI18n.text("Найдено задач: {0}. Сортировка — по рейтингу.",data.tasks.length));
   } catch (error) { message(error.message, true); }
 }
 function renderTasks() {
   const list = $("task-list"); list.replaceChildren();
-  $("catalog-count").textContent = String(state.tasks.length);
-  if (!state.tasks.length) { list.append(el("p", "Задач с такими параметрами пока нет. Попробуйте другую тему или готовность.", "empty-state")); return; }
+  SolvexI18n.set($("catalog-count"),String(state.tasks.length));
+  if (!state.tasks.length) { list.append(el("p", SolvexI18n.text("Задач с такими параметрами пока нет. Попробуйте другую тему или готовность."), "empty-state")); return; }
   for (const task of state.tasks) {
     const box = el("article", null, "task-card"), top = el("div", null, "task-card-top");
     box.classList.add(`level-${task.level}`);
     const rating = el("div", null, "task-rating");
-    rating.setAttribute("aria-label", `Готовность: ${task.score} из 100`);
+    SolvexI18n.attribute(rating,"aria-label",SolvexI18n.text("Готовность: {0} из 100",task.score));
     rating.append(el("strong", task.score), el("span", "/ 100"));
     top.append(el("span", task.topic, "chip"), rating);
-    const open = el("button", state.user.role === "TEAM" ? "Посмотреть и откликнуться" : "Открыть задачу", "secondary");
+    const open = el("button", state.user.role === "TEAM" ? SolvexI18n.text("Посмотреть и откликнуться") : SolvexI18n.text("Открыть задачу"), "secondary");
     open.addEventListener("click", () => openTask(task.id));
     const footer = el("div", null, "task-card-footer");
-    footer.append(el("span", `Готовность: ${LEVELS[task.level].toLowerCase()}`, `level-label level-${task.level}`), open);
-    box.append(top, el("h2", task.card.title), el("p", task.card.need || task.card.context || "Описание ещё уточняется"), footer);
+    footer.append(el("span", SolvexI18n.text("Готовность: {0}",LEVELS[task.level].toLowerCase()), `level-label level-${task.level}`), open);
+    box.append(top, el("h2", task.card.title), el("p", task.card.need || task.card.context || SolvexI18n.text("Описание ещё уточняется")), footer);
     list.append(box);
   }
 }
@@ -209,7 +209,7 @@ $("refresh").addEventListener("click", () => loadTasks(true));
 async function openTask(id) {
   const request = ++detailRequest;
   try {
-    message("Открываем задачу…");
+    message(SolvexI18n.text("Открываем задачу…"));
     const task = await api("/api/catalog/tasks/" + id);
     if (request !== detailRequest) return;
     const detail = $("task-detail"); detail.replaceChildren();
@@ -217,46 +217,47 @@ async function openTask(id) {
     const fields = el("div", null, "detail-grid");
     for (const [key, title] of Object.entries(FIELDS)) {
       if (key === "title") continue;
-      const cell = el("div"); cell.append(el("b", title), el("span", task.card[key] || "Не указано")); fields.append(cell);
+      const cell = el("div"); cell.append(el("b", title), el("span", task.card[key] || SolvexI18n.text("Не указано"))); fields.append(cell);
     }
+    if (task.organization?.name) detail.append(organizationCard(task.organization));
     detail.append(fields); detail.hidden = false; reveal(detail);
-    if (state.user.role !== "TEAM") { message("Опубликованная карточка задачи."); return; }
+    if (state.user.role !== "TEAM") { message(SolvexI18n.text("Опубликованная карточка задачи.")); return; }
     const {team} = await api("/api/me/team");
     if (request !== detailRequest) return;
     if (!team) {
-      const button = el("button", "Заполнить профиль команды →", "primary");
+      const button = el("button", SolvexI18n.text("Заполнить профиль команды →"), "primary");
       button.type = "button"; button.addEventListener("click", () => view("team-profile"));
-      detail.append(el("p", "Чтобы отправить отклик, расскажите о вашей команде."), button);
-      message("Создайте профиль команды, чтобы предложить решение."); return;
+      detail.append(el("p", SolvexI18n.text("Чтобы отправить отклик, расскажите о вашей команде.")), button);
+      message(SolvexI18n.text("Создайте профиль команды, чтобы предложить решение.")); return;
     }
-    detail.append(el("h2", "Ваш подход к решению"), el("p", "Отклик от команды «" + team.name + "»", "hint"));
+    detail.append(el("h2", SolvexI18n.text("Ваш подход к решению")), el("p", SolvexI18n.combine(SolvexI18n.combine(SolvexI18n.text("Отклик от команды «"),team.name),"»"), "hint"));
     const form = el("form"); form.noValidate = true;
     const inputs = {};
-    for (const [key, title, tag] of [["idea","Идея решения","textarea"],["plan","План","textarea"],["duration_days","Срок в днях","input"],["prototype_url","Ссылка на прототип","input"]]) {
+    for (const [key, title, tag] of [["idea",SolvexI18n.text("Идея решения"),"textarea"],["plan",SolvexI18n.text("План"),"textarea"],["duration_days",SolvexI18n.text("Срок в днях"),"input"],["prototype_url",SolvexI18n.text("Ссылка на прототип"),"input"]]) {
       const label = el("label", title), input = el(tag); inputs[key] = input;
       input.id = "proposal-" + key; label.htmlFor = input.id;
       if (key === "duration_days") { input.type = "number"; input.min = "1"; input.max = "365"; }
-      if (key === "prototype_url") { input.type = "url"; input.placeholder = "https://…"; }
+      if (key === "prototype_url") { input.type = "url"; SolvexI18n.attribute(input,"placeholder","https://…"); }
       if (key === "idea" || key === "plan") { input.minLength = 10; input.maxLength = 2000; }
       input.required = true; form.append(label, input);
     }
-    const submit = el("button", "Отправить предложение", "primary"); submit.type = "submit"; form.append(submit);
+    const submit = el("button", SolvexI18n.text("Отправить предложение"), "primary"); submit.type = "submit"; form.append(submit);
     form.addEventListener("submit", event => {event.preventDefault(); action(submit, async () => {
-      if (inputs.idea.value.trim().length < 10 || inputs.plan.value.trim().length < 10) throw new Error("Идея и план должны содержать не менее 10 символов");
+      if (inputs.idea.value.trim().length < 10 || inputs.plan.value.trim().length < 10) throw new Error(SolvexI18n.text("Идея и план должны содержать не менее 10 символов"));
       const duration = Number(inputs.duration_days.value);
-      if (!Number.isInteger(duration) || duration < 1 || duration > 365) throw new Error("Укажите срок от 1 до 365 дней");
+      if (!Number.isInteger(duration) || duration < 1 || duration > 365) throw new Error(SolvexI18n.text("Укажите срок от 1 до 365 дней"));
       let url;
-      try { url = new URL(inputs.prototype_url.value.trim()); } catch { throw new Error("Укажите полный URL прототипа"); }
-      if (!["http:", "https:"].includes(url.protocol)) throw new Error("Ссылка должна начинаться с http:// или https://");
+      try { url = new URL(inputs.prototype_url.value.trim()); } catch { throw new Error(SolvexI18n.text("Укажите полный URL прототипа")); }
+      if (!["http:", "https:"].includes(url.protocol)) throw new Error(SolvexI18n.text("Ссылка должна начинаться с http:// или https://"));
       await api("/api/catalog/tasks/" + id + "/proposals", "POST", {
         idea: inputs.idea.value.trim(), plan: inputs.plan.value.trim(),
         duration_days: duration, prototype_url: url.href});
       const confirmation = el("div", null, "empty-state");
-      confirmation.append(el("h3", "Первый шаг сделан"), el("p", "Отклик отправлен. Решение бизнеса появится в разделе «Мои отклики»."));
+      confirmation.append(el("h3", SolvexI18n.text("Первый шаг сделан")), el("p", SolvexI18n.text("Отклик отправлен. Решение бизнеса появится в разделе «Мои отклики».")));
       form.replaceWith(confirmation);
-      message("Предложение отправлено. Решение примет бизнес.");
+      message(SolvexI18n.text("Предложение отправлено. Решение примет бизнес."));
     });});
-    detail.append(form); message("Задача открыта. Предложите свой подход.");
+    detail.append(form); message(SolvexI18n.text("Задача открыта. Предложите свой подход."));
   } catch (error) { message(error.message, true); }
 }
 
@@ -264,12 +265,12 @@ let businessLoad = 0;
 async function loadBusiness(preferredId) {
   const generation = ++businessLoad;
   try {
-    message("Загружаем задачи бизнеса и отклики...");
+    message(SolvexI18n.text("Загружаем задачи бизнеса и отклики..."));
     const data = await api("/api/me/tasks");
     if (generation !== businessLoad || state.currentView !== "business") return;
     data.tasks = data.tasks.filter(task => task.status === "published"); state.tasks = data.tasks;
     const select = $("business-task"), previous = select.value;
-    select.replaceChildren(...data.tasks.map(task => new Option(`${task.card.title} · ${task.score}/100`, task.id)));
+    select.replaceChildren(...data.tasks.map(task => SolvexI18n.option(`${task.card.title} · ${task.score}/100`,task.id)));
     if (preferredId && data.tasks.some(task => task.id === preferredId)) select.value = String(preferredId);
     else if (data.tasks.some(task => String(task.id) === previous)) select.value = previous;
     else if (state.taskId && data.tasks.some(task => task.id === state.taskId)) select.value = String(state.taskId);
@@ -281,45 +282,50 @@ async function loadProposals(successMessage = "") {
   const request = ++proposalRequest;
   const list = $("proposal-list"), taskId = $("business-task").value;
   list.replaceChildren();
-  if (!taskId) { list.append(el("p", "Сначала опубликуйте задачу.")); message("Опубликованных задач пока нет."); return; }
+  $("proposal-comparison").hidden = true;
+  if (!taskId) { list.append(el("p", SolvexI18n.text("Сначала опубликуйте задачу."))); message(SolvexI18n.text("Опубликованных задач пока нет.")); return; }
   try {
     const [{proposals}, {teams}] = await Promise.all([api(`/api/me/tasks/${taskId}/proposals`), api("/api/catalog/teams")]);
     if (request !== proposalRequest || $("business-task").value !== taskId || state.currentView !== "business") return;
     list.replaceChildren();
     if (!proposals.length) {
-      const find = el("button", "Посмотреть подходящие команды →", "secondary"); find.type = "button";
+      const find = el("button", SolvexI18n.text("Посмотреть подходящие команды →"), "secondary"); find.type = "button";
       find.onclick = () => view("matches", {taskId:Number(taskId)});
-      list.append(el("p", "Пока нет предложений. Можно изучить команды и сохранить интересные профили."), find);
-      message("Отклики загружены: пока ни одного."); return;
+      list.append(el("p", SolvexI18n.text("Пока нет предложений. Можно изучить команды и сохранить интересные профили.")), find);
+      message(SolvexI18n.text("Отклики загружены: пока ни одного.")); return;
     }
+    renderComparison(proposals, teams);
     for (const p of proposals) {
       const article = el("article"), team = teams.find(t => t.id === p.team_id), actions = el("div", null, "actions");
       article.classList.toggle("selected", p.status === "selected");
       const profile = el("div", null, "team-profile");
-      profile.append(el("span", `Навыки: ${team?.skills?.join(", ") || "не указаны"}`), el("span", `Технологии: ${team?.technologies?.join(", ") || "не указаны"}`));
-      article.append(el("h3", team?.name || "Команда"), el("p", `${p.status === "selected" ? "Выбрана" : p.status === "rejected" ? "Отклонена" : "Ожидает решения"}${p.milestone_confirmed ? " · Этап подтверждён · +10 однократно" : ""}`, "proposal-status"), profile,
-        el("p", p.idea), el("p", `План: ${p.plan}`), el("p", `Срок: ${p.duration_days} дн. · Баллы команды: ${team?.points ?? 0} · За этот этап: ${p.points}`, "proposal-meta"));
-      const link = el("a", "Открыть прототип"); link.href = p.prototype_url; link.target = "_blank"; link.rel = "noopener noreferrer"; article.append(link);
-      for (const [status, title] of [["selected","Выбрать"],["rejected","Отклонить"]]) {
+      profile.append(el("span", SolvexI18n.text("Навыки: {0}",team?.skills?.join(", ") || SolvexI18n.text("не указаны"))), el("span", SolvexI18n.text("Технологии: {0}",team?.technologies?.join(", ") || SolvexI18n.text("не указаны"))));
+      article.append(el("h3", team?.name || SolvexI18n.text("Команда")), el("p", SolvexI18n.combine("",p.status === "selected" ? SolvexI18n.text("Выбрана") : p.status === "rejected" ? SolvexI18n.text("Отклонена") : SolvexI18n.text("Ожидает решения"),"",p.milestone_confirmed ? SolvexI18n.text(" · Этап подтверждён · +10 однократно") : "",""), "proposal-status"), profile,
+        el("p", p.idea), el("p", SolvexI18n.text("План: {0}",p.plan)), el("p", SolvexI18n.text("Срок: {0} дн. · Баллы команды: {1} · За этот этап: {2}",p.duration_days,team?.points ?? 0,p.points), "proposal-meta"));
+      const link = el("a", SolvexI18n.text("Открыть прототип")); link.href = p.prototype_url; link.target = "_blank"; link.rel = "noopener noreferrer"; article.append(link);
+      for (const [status, title] of [["selected",SolvexI18n.text("Выбрать")],["rejected",SolvexI18n.text("Отклонить")]]) {
         if (p.milestone_confirmed && status === "rejected") continue;
         const button = el("button", title, status === "selected" ? "primary" : "secondary");
         button.disabled = p.status === status;
         button.addEventListener("click", () => action(button, async () => {
           await api(`/api/me/proposals/${p.id}`, "PATCH", {status});
-          await loadProposals("Решение сохранено вручную. Остальные отклики не изменены.");
+          await loadProposals(SolvexI18n.text("Решение сохранено вручную. Остальные отклики не изменены."));
         })); actions.append(button);
       }
       if (p.status === "selected") {
-        const button = el("button", p.milestone_confirmed ? "Этап подтверждён" : "Подтвердить этап +10", "secondary");
+        const button = el("button", p.milestone_confirmed ? SolvexI18n.text("Этап подтверждён") : SolvexI18n.text("Подтвердить этап +10"), "secondary");
         button.disabled = p.milestone_confirmed;
         button.addEventListener("click", () => action(button, async () => {
           await api(`/api/me/proposals/${p.id}/milestones/confirm`, "POST", {});
-          await loadProposals("Этап подтверждён: за этот этап начислено 10 баллов однократно.");
+          await loadProposals(SolvexI18n.text("Этап подтверждён: за этот этап начислено 10 баллов однократно."));
         })); actions.append(button);
       }
+      article.id = "proposal-card-" + p.id; article.classList.add("proposal-card");
+      if (team) article.prepend(organizationCard(team, true));
+      attachReview(article, p, taskId);
       article.append(actions); list.append(article);
     }
-    message(successMessage || `Отклики загружены: ${proposals.length}. Каждое решение принимается независимо.`);
+    message(successMessage || SolvexI18n.text("Отклики загружены: {0}. Каждое решение принимается независимо.",proposals.length));
   } catch (error) { if (request === proposalRequest) message(error.message, true); }
 }
 $("business-task").addEventListener("change", () => loadProposals());
@@ -330,50 +336,21 @@ $("catalog-search").addEventListener("keydown", event => {
   if (event.key === "Enter") { event.preventDefault(); loadTasks(); }
 });
 
-async function loadTeamProfile() {
-  if (state.profileDirty) return;
-  const controls = [...$("team-profile-form").querySelectorAll("input, button")];
-  controls.forEach(control => { control.disabled = true; });
-  try {
-    const {team} = await api("/api/me/team");
-    $("team-name").value = team?.name || "";
-    for (const key of ["skills", "technologies", "interests"]) $("team-" + key).value = (team?.[key] || []).join(", ");
-    $("team-points").textContent = team ? "Баллы за подтверждённые этапы: " + team.points : "";
-  } catch (error) { message(error.message, true); }
-  finally { controls.forEach(control => { control.disabled = false; }); }
-}
-$("team-profile-form").addEventListener("input", () => { state.profileDirty = true; });
-$("team-profile-form").addEventListener("submit", event => {
-  event.preventDefault();
-  action(event.currentTarget.querySelector('button[type="submit"]'), async () => {
-    const payload = {name: $("team-name").value.trim()};
-    for (const key of ["skills", "technologies", "interests"]) {
-      payload[key] = $("team-" + key).value.split(",").map(value => value.trim()).filter(Boolean);
-      if (payload[key].length > 16 || payload[key].some(value => value.length > 80)) throw new Error("До 16 пунктов, каждый — не длиннее 80 символов.");
-    }
-    if (!payload.skills.length) throw new Error("Добавьте хотя бы один навык.");
-    const {team} = await api("/api/me/team", "PUT", payload);
-    state.profileDirty = false;
-    $("team-points").textContent = "Баллы за подтверждённые этапы: " + team.points;
-    message("Профиль сохранён. Теперь можно выбрать задачу и отправить отклик.");
-  });
-});
-
 async function loadMyProposals() {
   try {
     const {proposals} = await api("/api/me/proposals"), list = $("my-proposal-list");
     list.replaceChildren();
     if (!proposals.length) {
-      const empty = el("div", null, "empty-state"), button = el("button", "Найти свою задачу →", "primary");
+      const empty = el("div", null, "empty-state"), button = el("button", SolvexI18n.text("Найти свою задачу →"), "primary");
       button.type = "button"; button.addEventListener("click", () => view("catalog"));
-      empty.append(el("h2", "Покажите, что вы можете"), el("p", "Выберите задачу в каталоге и предложите свой подход."), button);
+      empty.append(el("h2", SolvexI18n.text("Покажите, что вы можете")), el("p", SolvexI18n.text("Выберите задачу в каталоге и предложите свой подход.")), button);
       list.append(empty);
     }
     for (const proposal of proposals) {
       const box = el("article", null, "panel");
-      box.append(el("span", proposal.status === "selected" ? "Команда выбрана" : proposal.status === "rejected" ? "Отклик отклонён" : "Ожидает решения", "proposal-status"),
+      box.append(el("span", proposal.status === "selected" ? SolvexI18n.text("Команда выбрана") : proposal.status === "rejected" ? SolvexI18n.text("Отклик отклонён") : SolvexI18n.text("Ожидает решения"), "proposal-status"),
         el("h2", proposal.task_title), el("p", proposal.idea),
-        el("p", proposal.milestone_confirmed ? "Этап подтверждён · +10 баллов" : "Срок: " + proposal.duration_days + " дн.", "hint"));
+        el("p", proposal.milestone_confirmed ? SolvexI18n.text("Этап подтверждён · +10 баллов") : SolvexI18n.combine(SolvexI18n.combine(SolvexI18n.text("Срок: "),proposal.duration_days),SolvexI18n.text(" дн.")), "hint"));
       list.append(box);
     }
     message("");
@@ -382,9 +359,9 @@ async function loadMyProposals() {
 
 function applySession(session) {
   state.user = session.user; state.csrf = session.csrf_token;
-  $("account-email").textContent = session.user.email;
-  $("account-role").textContent = session.user.role === "BUSINESS" ? "Бизнес-аккаунт" : "Команда";
-  $("account-avatar").textContent = session.user.email.charAt(0).toUpperCase();
+  SolvexI18n.set($("account-email"),session.user.email);
+  SolvexI18n.set($("account-role"),session.user.role === "BUSINESS" ? SolvexI18n.text("Бизнес-аккаунт") : SolvexI18n.text("Команда"));
+  SolvexI18n.set($("account-avatar"),session.user.email.charAt(0).toUpperCase());
   document.querySelectorAll("[data-access]").forEach(node => { node.hidden = node.dataset.access !== session.user.role; });
 }
 async function boot() {
@@ -397,7 +374,7 @@ async function boot() {
     $("boot-state").hidden = true;
     view(location.hash.slice(1) || (session.user.role === "BUSINESS" ? "create" : "catalog"));
   } catch (error) {
-    $("boot-state").firstChild.textContent = error.message + " ";
+    SolvexI18n.set($("boot-state").firstChild,error.message + " ");
     $("retry-session").hidden = false;
   }
 }
@@ -410,10 +387,10 @@ window.addEventListener("solvex:session", event => {
     location.replace("/app"); return;
   }
   applySession(event.detail);
-  message("Вход восстановлен. Можно продолжить с несохранёнными изменениями.");
+  message(SolvexI18n.text("Вход восстановлен. Можно продолжить с несохранёнными изменениями."));
 });
 $("logout").addEventListener("click", event => {
-  if (state.busy) { message("Дождитесь завершения текущего действия."); return; }
+  if (state.busy) { message(SolvexI18n.text("Дождитесь завершения текущего действия.")); return; }
   if (!canReplaceWork()) return;
   action(event.currentTarget, async () => {
     await api("/api/auth/logout", "POST", {});

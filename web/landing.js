@@ -2,15 +2,15 @@
 
 (() => {
   const examples = {
-    retail: "«В магазине растут списания.\nС чего начать?»",
-    education: "«Запись на консультации — хаос.\nКак сделать проще?»",
-    service: "«Заявки теряются в переписках.\nКак собрать всё вместе?»"
+    retail: SolvexI18n.text("«В магазине растут списания.\nС чего начать?»"),
+    education: SolvexI18n.text("«Запись на консультации — хаос.\nКак сделать проще?»"),
+    service: SolvexI18n.text("«Заявки теряются в переписках.\nКак собрать всё вместе?»")
   };
   document.querySelectorAll("[data-scenario]").forEach(button => {
     button.addEventListener("click", () => {
       document.querySelectorAll("[data-scenario]").forEach(item =>
         item.setAttribute("aria-pressed", String(item === button)));
-      document.getElementById("scenario-text").textContent = examples[button.dataset.scenario];
+      SolvexI18n.set(document.getElementById("scenario-text"),examples[button.dataset.scenario]);
     });
   });
 
@@ -19,7 +19,7 @@
   if (!ctx) return;
   const area = canvas.parentElement, reduced = matchMedia("(prefers-reduced-motion: reduce)");
   const pause = document.createElement("button");
-  pause.className = "motion-toggle"; pause.type = "button"; pause.textContent = "Ⅱ";
+  pause.className = "motion-toggle"; pause.type = "button"; SolvexI18n.set(pause,"Ⅱ");
   area.append(pause);
   let paused = reduced.matches, w = 0, h = 0, frame = 0, last = 0, angle = .45;
   let targetX = 0, targetY = 0, tiltX = 0, tiltY = 0;
@@ -28,9 +28,9 @@
     return [Math.cos(a) * r, y, Math.sin(a) * r];
   });
   function updatePause() {
-    pause.setAttribute("aria-label", paused ? "Включить анимацию" : "Остановить анимацию");
+    SolvexI18n.attribute(pause,"aria-label",paused ? SolvexI18n.text("Включить анимацию") : SolvexI18n.text("Остановить анимацию"));
     pause.setAttribute("aria-pressed", String(paused));
-    pause.textContent = paused ? "▷" : "Ⅱ";
+    SolvexI18n.set(pause,paused ? "▷" : "Ⅱ");
     area.classList.toggle("motion-paused", paused);
   }
   function project(x,y,z) {

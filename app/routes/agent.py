@@ -4,6 +4,7 @@ import asyncio
 import json
 from datetime import datetime, timezone
 from uuid import UUID, uuid4
+from typing import Literal
 
 from fastapi import APIRouter, Request
 from pydantic import Field
@@ -23,6 +24,7 @@ class StartInput(InputModel):
 
 
 class MessageInput(StartInput):
+    locale: Literal['ru', 'en'] = 'ru'
     text: str = Field(min_length=1, max_length=6000)
     revision: int = Field(ge=0, strict=True)
 
@@ -99,7 +101,8 @@ async def send(request: Request, task_id: int, payload: MessageInput):
                    (task_id, request_id, attempt, now()))
         initial = snapshot(db, task_id, user['id'])
     try:
-        answer = await asyncio.wait_for(respond(initial['task'], initial['messages']), timeout=45)
+        localized_task = {**initial['task'], 'locale': payload.locale}
+        answer = await asyncio.wait_for(respond(localized_task, initial['messages']), timeout=45)
         with connection() as db:
             db.execute('BEGIN IMMEDIATE')
             current = owned_task(db, task_id, user['id'])

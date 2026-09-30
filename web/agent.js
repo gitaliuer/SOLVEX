@@ -9,7 +9,7 @@ function rememberTask(id) {
 function markDirty() {
   state.dirty = true;
   $("unsaved").hidden = false;
-  $("unsaved").textContent = "Изменения и подтверждения ещё не сохранены";
+  SolvexI18n.set($("unsaved"),SolvexI18n.text("Изменения и подтверждения ещё не сохранены"));
 }
 function markSaved() { state.dirty = false; $("unsaved").hidden = true; }
 function selectPane(pane) {
@@ -30,9 +30,9 @@ function lockAgent() {
   $("retry-message").disabled = pending;
   $("reload-agent").disabled = pending;
   $("agent-activity").hidden = !pending;
-  $("agent-status").textContent = pending ? "Работаю над вашим сообщением" :
-    agent.run?.status === "failed" ? "Сообщение сохранено · нужен повтор" :
-    agent.messages.length ? "История сохранена · можно продолжать" : "Начните с того, что важно";
+  SolvexI18n.set($("agent-status"),pending ? SolvexI18n.text("Работаю над вашим сообщением") :
+    agent.run?.status === "failed" ? SolvexI18n.text("Сообщение сохранено · нужен повтор") :
+    agent.messages.length ? SolvexI18n.text("История сохранена · можно продолжать") : SolvexI18n.text("Начните с того, что важно"));
 }
 function focusField(field) {
   selectPane("card");
@@ -49,7 +49,7 @@ function renderEditor(card, confirmed = []) {
     const input = el(key === "title" ? "input" : "textarea");
     input.id = "field-" + key; input.value = card[key] || "";
     input.maxLength = key === "title" ? 160 : 2000;
-    input.placeholder = key === "title" ? "Название появится здесь" : "Пока не уточнили";
+    SolvexI18n.attribute(input,"placeholder",key === "title" ? SolvexI18n.text("Название появится здесь") : SolvexI18n.text("Пока не уточнили"));
     let checkbox;
     if (key === "title") {
       const title = el("label", label); title.htmlFor = input.id;
@@ -57,25 +57,25 @@ function renderEditor(card, confirmed = []) {
     } else {
       input.rows = 3;
       const summary = el("summary", label);
-      const badge = el("span", confirmed.includes(key) ? "Проверено" : card[key] ? "Проверить" : "", "field-state");
+      const badge = el("span", confirmed.includes(key) ? SolvexI18n.text("Проверено") : card[key] ? SolvexI18n.text("Проверить") : "", "field-state");
       badge.classList.toggle("confirmed", confirmed.includes(key));
       summary.append(badge);
-      const value = el("p", card[key] || "Уточним в диалоге", "field-value" + (card[key] ? "" : " empty"));
+      const value = el("p", card[key] || SolvexI18n.text("Уточним в диалоге"), "field-value" + (card[key] ? "" : " empty"));
       const edit = el("div", null, "field-editor"), inputLabel = el("label", label);
       inputLabel.htmlFor = input.id; inputLabel.className = "sr-only";
-      const confirmLabel = el("label", "Подтверждаю эти сведения", "check");
+      const confirmLabel = el("label", SolvexI18n.text("Подтверждаю эти сведения"), "check");
       checkbox = el("input"); checkbox.type = "checkbox"; checkbox.id = "confirm-" + key;
       checkbox.checked = confirmed.includes(key);
       checkbox.addEventListener("change", () => {
-        markDirty(); badge.textContent = checkbox.checked ? "Сохраните" : "Проверить";
+        markDirty(); SolvexI18n.set(badge,checkbox.checked ? SolvexI18n.text("Сохраните") : SolvexI18n.text("Проверить"));
         badge.classList.remove("confirmed");
       });
       confirmLabel.prepend(checkbox); edit.append(inputLabel, input, confirmLabel);
       summary.append(value); wrapper.append(summary, edit);
       input.addEventListener("input", () => {
-        value.textContent = input.value || "Уточним в диалоге";
+        SolvexI18n.set(value,input.value || SolvexI18n.text("Уточним в диалоге"));
         value.classList.toggle("empty", !input.value);
-        badge.textContent = input.value ? "Проверить" : "";
+        SolvexI18n.set(badge,input.value ? SolvexI18n.text("Проверить") : "");
         badge.classList.remove("confirmed");
       });
     }
@@ -84,29 +84,29 @@ function renderEditor(card, confirmed = []) {
   }
 }
 function showScore(task) {
-  $("score").textContent = task.score;
-  $("preview-score").textContent = "Готовность " + task.score + "/100";
+  SolvexI18n.set($("score"),task.score);
+  SolvexI18n.set($("preview-score"),SolvexI18n.combine(SolvexI18n.combine(SolvexI18n.text("Готовность "),task.score),"/100"));
   $("readiness-ring").style.setProperty("--progress", (task.score * 3.6) + "deg");
-  $("readiness-ring").setAttribute("aria-label", "Готовность: " + task.score + " из 100");
-  $("context-title").textContent = task.card.title || "Новая возможность";
-  $("task-state").textContent = task.status === "published" ? "В каталоге" : "Черновик";
-  $("level").textContent = "Готовность · " + LEVELS[task.level].toLowerCase();
+  SolvexI18n.attribute($("readiness-ring"),"aria-label",SolvexI18n.combine(SolvexI18n.combine(SolvexI18n.text("Готовность: "),task.score),SolvexI18n.text(" из 100")));
+  SolvexI18n.set($("context-title"),task.card.title || SolvexI18n.text("Новая возможность"));
+  SolvexI18n.set($("task-state"),task.status === "published" ? SolvexI18n.text("В каталоге") : SolvexI18n.text("Черновик"));
+  SolvexI18n.set($("level"),SolvexI18n.combine(SolvexI18n.text("Готовность · "),LEVELS[task.level].toLowerCase()));
   const fields = Object.keys(FIELDS).filter(key => key !== "title");
-  $("filled-count").textContent = fields.filter(key => task.card[key]?.trim()).length + " / 9";
+  SolvexI18n.set($("filled-count"),fields.filter(key => task.card[key]?.trim()).length + " / 9");
   $("agent-checklist").replaceChildren(...fields.map(key => {
     const li = el("li"), button = el("button");
     button.type = "button";
     const checked = task.score_breakdown?.[key] > 0;
     button.className = checked ? "confirmed" : task.card[key] ? "filled" : "";
     button.append(el("i"), el("span", FIELDS[key]));
-    button.setAttribute("aria-label", FIELDS[key] + (checked ? ": подтверждено" : task.card[key] ? ": нужно проверить" : ": не заполнено"));
+    SolvexI18n.attribute(button,"aria-label",SolvexI18n.combine(FIELDS[key],checked ? SolvexI18n.text(": подтверждено") : task.card[key] ? SolvexI18n.text(": нужно проверить") : SolvexI18n.text(": не заполнено")));
     button.addEventListener("click", () => focusField(key)); li.append(button); return li;
   }));
   $("publish").hidden = task.status === "published";
   $("find-teams").hidden = task.status !== "published";
-  $("publication-hint").textContent = task.status === "published"
-    ? "Задача в каталоге. Чат доступен для обсуждения; изменения публикации вносите вручную."
-    : "Публикация откроет все поля карточки, включая контакт. Можно с любым рейтингом.";
+  SolvexI18n.set($("publication-hint"),task.status === "published"
+    ? SolvexI18n.text("Задача в каталоге. Чат доступен для обсуждения; изменения публикации вносите вручную.")
+    : SolvexI18n.text("Публикация откроет все поля карточки, включая контакт. Можно с любым рейтингом."));
 }
 function renderMessages() {
   $("chat-welcome").hidden = agent.messages.length > 0;
@@ -120,8 +120,8 @@ function renderMessages() {
     const row = el("article", null, "chat-message " + item.role); row.dataset.id = String(item.id);
     const avatar = el("span", "✳", "message-avatar"); avatar.setAttribute("aria-hidden", "true");
     const body = el("div", null, "message-body");
-    body.append(el("span", item.role === "user" ? "Вы" : "SOLVEX", "message-author"), el("p", item.text, "message-text"));
-    const time = el("time", new Date(item.created_at).toLocaleTimeString("ru", {hour:"2-digit",minute:"2-digit"}), "message-time");
+    body.append(el("span", item.role === "user" ? SolvexI18n.text("Вы") : "SOLVEX", "message-author"), el("p", item.text, "message-text"));
+    const time = el("time", new Date(item.created_at).toLocaleTimeString(SolvexI18n.locale, {hour:"2-digit",minute:"2-digit"}), "message-time");
     time.dateTime = item.created_at; body.append(time); row.append(avatar, body); target.append(row);
   }
   if (nearBottom || userAdded) {
@@ -141,7 +141,7 @@ function acceptSnapshot(data, replaceCard = true) {
   }
   showScore(data.task); renderMessages(); upsertBusinessTask(data.task);
   $("agent-error").hidden = data.run?.status !== "failed";
-  $("agent-error-text").textContent = data.run?.error || "";
+  SolvexI18n.set($("agent-error-text"),data.run?.error ? SolvexI18n.failure({code:"AI_UNAVAILABLE",message:data.run.error}) : "");
   $("retry-message").hidden = data.run?.status !== "failed";
   lockAgent();
 }
@@ -203,9 +203,9 @@ async function saveCard() {
     const badge = $("field-" + key).closest("details").querySelector(".field-state");
     const checked = task.score_breakdown[key] > 0;
     badge.classList.toggle("confirmed", checked);
-    badge.textContent = checked ? "Проверено" : task.card[key] ? "Проверить" : "";
+    SolvexI18n.set(badge,checked ? SolvexI18n.text("Проверено") : task.card[key] ? SolvexI18n.text("Проверить") : "");
   }
-  message("Карточка сохранена. Рейтинг " + task.score + "/100.");
+  message(SolvexI18n.combine(SolvexI18n.combine(SolvexI18n.text("Карточка сохранена. Рейтинг "),task.score),"/100."));
   return task;
 }
 function pollAgent(delay = 1800) {
@@ -221,7 +221,7 @@ function pollAgent(delay = 1800) {
       if (data.run?.status === "pending") pollAgent();
     } catch (error) {
       if (generation !== agent.generation) return;
-      $("agent-error").hidden = false; $("agent-error-text").textContent = error.message;
+      $("agent-error").hidden = false; SolvexI18n.set($("agent-error-text"),error.message);
       $("retry-message").hidden = true;
       // A failed read is not evidence that the server run failed.
       agent.run = null; lockAgent();
@@ -240,7 +240,7 @@ async function sendMessage(retry = false) {
     await ensureTask();
     if (state.dirty) await saveCard();
     const request = api("/api/me/agent/" + agent.task.id + "/messages", "POST",
-      {request_id:requestId,text,revision:agent.task.revision}, 55000);
+      {request_id:requestId,text,revision:agent.task.revision,locale:SolvexI18n.locale}, 55000);
     pollAgent(150);
     const data = await request;
     if (generation !== agent.generation) return;
@@ -252,7 +252,7 @@ async function sendMessage(retry = false) {
     if (data.run?.status === "pending") pollAgent();
   } catch (error) {
     if (generation !== agent.generation) return;
-    $("agent-error").hidden = false; $("agent-error-text").textContent = error.message;
+    $("agent-error").hidden = false; SolvexI18n.set($("agent-error-text"),error.message);
     $("retry-message").hidden = true;
     // Keep the text and UUID so a lost response cannot send the same message twice.
   } finally {
@@ -284,7 +284,7 @@ $("publish").addEventListener("click", event => action(event.currentTarget, asyn
   await saveCard();
   const task = await api("/api/me/tasks/" + agent.task.id + "/publish", "POST", {});
   agent.task = task; showScore(task); upsertBusinessTask(task);
-  message("Задача «" + task.card.title + "» опубликована. Рейтинг " + task.score + "/100.");
+  message(SolvexI18n.combine(SolvexI18n.combine(SolvexI18n.combine(SolvexI18n.combine(SolvexI18n.text("Задача «"),task.card.title),SolvexI18n.text("» опубликована. Рейтинг ")),task.score),"/100."));
 }));
 $("new-task").addEventListener("click", () => {
   if (state.busy || !canReplaceWork()) return;

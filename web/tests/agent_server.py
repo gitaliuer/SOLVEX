@@ -9,7 +9,7 @@ import tempfile
 from pathlib import Path
 
 import uvicorn
-from app.routes import agent
+from app.routes import agent, reviews
 from app.main import app
 
 
@@ -23,8 +23,16 @@ async def fixture(task, messages):
             'updates': {'title': 'Снизить списания', 'context': last} if task['status'] == 'draft' else {}}
 
 
+async def review_fixture(task, proposal, locale):
+    await asyncio.sleep(0.3)
+    return {'strengths': [{'task_field': 'expected_result', 'proposal_field': 'plan',
+                          'quote': proposal['plan'], 'requirement': task['card'].get('expected_result', '')}],
+            'questions': ['Which data will you use?'] if locale == 'en' else ['Какие данные вы будете использовать?']}
+
+
 if __name__ == '__main__':
     with tempfile.TemporaryDirectory(prefix='solvex-agent-ui-') as directory:
         os.environ['DATABASE_PATH'] = str(Path(directory) / 'test.db')
         agent.respond = fixture
+        reviews.analyze = review_fixture
         uvicorn.run(app, host='127.0.0.1', port=8010)

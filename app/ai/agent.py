@@ -72,7 +72,7 @@ async def respond(task: dict, messages: list[dict]) -> dict:
         'Для status=published сохрани все текущие поля: обсуди вопрос и объясни, что опубликованную '
         'карточку пользователь редактирует вручную. Не утверждай, что что-то изменил. '
         'Для черновика можно сообщить, какие сведения предложены для проверки. '
-        'Ответ строго по схеме.',
+        'Ответ строго по схеме. ' + ('Все reply и questions напиши на английском. Факты в карточке не переводи.' if task.get('locale') == 'en' else 'Ответ пользователю на русском.'),
         {'task': task, 'conversation': messages, 'sources': sources}, schema, 'solvex_agent_turn')
     invalid = lambda: AIServiceError('AI_INVALID_OUTPUT', 'AI вернул некорректный ответ. Повторите сообщение.')
     if not isinstance(raw, dict) or set(raw) != {'reply', 'questions', 'card'}:
